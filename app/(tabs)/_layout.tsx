@@ -7,12 +7,11 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <FontAwesome size={24} style={{ marginBottom: -3 }} {...props} />;
 }
 
 export default function TabLayout() {
@@ -21,25 +20,28 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+        tabBarActiveTintColor: "#7c3aed",
+        tabBarInactiveTintColor: "#9ca3af",
+        tabBarStyle: { borderTopColor: "#e5e7eb" },
         headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerStyle: { backgroundColor: "#fff" },
+        headerTitleStyle: { fontWeight: "700", fontSize: 20 },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "Discover",
+          tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
           headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
+            <Link href="/edit-profile" asChild>
+              <Pressable style={{ marginRight: 16 }}>
                 {({ pressed }) => (
                   <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
+                    name="user-circle"
+                    size={26}
+                    color="#7c3aed"
+                    style={{ opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
               </Pressable>
@@ -48,17 +50,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="matches"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: "Matches",
+          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="matches"
+        name="two"
         options={{
-          title: 'Matches',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
+          href: null, // hide this tab
         }}
       />
     </Tabs>
