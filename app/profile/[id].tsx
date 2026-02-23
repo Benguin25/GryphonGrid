@@ -1,6 +1,11 @@
-import { View, Text, Image, ScrollView, Pressable, StyleSheet } from "react-native";
+import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { useState, useEffect } from "react";
 import { MOCK_PROFILES } from "../../lib/mock";
+import { getJSON } from "../../lib/storage";
+import { Profile } from "../../lib/types";
+
+const STORAGE_KEY = "gryphongrid_my_profile";
 
 const SLEEP_LABELS: Record<string, string> = {
   early: "🌅 Early riser",
@@ -54,7 +59,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const profile = MOCK_PROFILES.find((p) => p.id === id);
+  const [profile, setProfile] = useState<Profile | null | undefined>(undefined); // undefined = loading
+
+  useEffect(() => {
+    if (id === "me") {
+      getJSON<Profile | null>(STORAGE_KEY, null).then(setProfile);
+    } else {
+      setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
+    }
+  }, [id]);
+
+  const isPreview = id === "me";
+
+  if (profile === undefined) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color="#7c3aed" />
+      </View>
+    );
+  }
 
   if (!profile) {
     return (
@@ -79,6 +102,13 @@ export default function ProfileScreen() {
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={styles.backText}>← Back</Text>
       </Pressable>
+
+      {/* Preview banner */}
+      {isPreview && (
+        <View style={styles.previewBanner}>
+          <Text style={styles.previewBannerText}>👁 Preview — this is how others see your profile</Text>
+        </View>
+      )}
 
       {/* Photo + identity */}
       <Image
@@ -122,9 +152,11 @@ export default function ProfileScreen() {
         )}
       </Section>
 
-      <Pressable style={styles.requestBtn}>
-        <Text style={styles.requestBtnText}>Request as roommate</Text>
-      </Pressable>
+      {!isPreview && (
+        <Pressable style={styles.requestBtn}>
+          <Text style={styles.requestBtnText}>Request as roommate</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -205,5 +237,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
     letterSpacing: 0.3,
+  },
+  previewBanner: {
+    backgroundColor: "#f0edff",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  previewBannerText: {
+    color: "#7c3aed",
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });

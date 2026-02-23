@@ -155,11 +155,21 @@ export default function EditProfileScreen() {
     setTimeout(() => router.back(), 800);
   }
 
+  async function handlePreview() {
+    await setJSON(STORAGE_KEY, profile);
+    router.push("/profile/me");
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Text style={styles.backText}>← Back</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>← Back</Text>
+        </Pressable>
+        <Pressable onPress={handlePreview} style={styles.previewBtn}>
+          <Text style={styles.previewBtnText}>Preview Profile →</Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.pageTitle}>Edit Profile</Text>
 
@@ -417,8 +427,21 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   content: { padding: 20, paddingBottom: 60 },
-  backBtn: { marginBottom: 8 },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  backBtn: {},
   backText: { color: "#7c3aed", fontSize: 16, fontWeight: "500" },
+  previewBtn: {
+    backgroundColor: "#f0edff",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  previewBtnText: { color: "#7c3aed", fontSize: 13, fontWeight: "700" },
   pageTitle: { fontSize: 28, fontWeight: "800", color: "#111", marginBottom: 20 },
 
   sectionHeader: {
