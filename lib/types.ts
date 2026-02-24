@@ -5,7 +5,7 @@ export type GuestFrequency = "rarely" | "occasionally" | "frequently";
 export type SubstanceEnv = "smoke-free" | "alcohol-ok" | "420-friendly" | "no-substances";
 export type NoiseTolerance = "quiet" | "moderate" | "background-ok";
 export type PetAllergy = "none" | "dog" | "cat" | "both";
-export type LeaseDuration = "4-months" | "8-months" | "12-plus";
+export type LeaseDuration = "4-months" | "8-months" | "12-months" | "16-months" | "16-plus" | "indefinite";
 export type Gender = "male" | "female" | "non-binary" | "prefer-not-to-say";
 
 export type Profile = {

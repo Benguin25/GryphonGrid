@@ -46,7 +46,7 @@ const DEFAULT_PROFILE: Profile = {
   petAllergy: "none",
   openToPets: false,
   noiseTolerance: "moderate",
-  leaseDuration: "8-months",
+  leaseDuration: "8-months" as LeaseDuration,
   moveInDate: "",
   budgetMin: undefined,
   budgetMax: undefined,
@@ -380,9 +380,12 @@ export default function EditProfileScreen() {
         label="Looking for"
         value={profile.leaseDuration}
         options={[
-          { value: "4-months", label: "4 months" },
-          { value: "8-months", label: "8 months" },
-          { value: "12-plus", label: "12+ months" },
+          { value: "4-months", label: "4 mo" },
+          { value: "8-months", label: "8 mo" },
+          { value: "12-months", label: "12 mo" },
+          { value: "16-months", label: "16 mo" },
+          { value: "16-plus", label: "16+ mo" },
+          { value: "indefinite", label: "Indefinite" },
         ]}
         onSelect={(v) => set("leaseDuration", v)}
       />

@@ -1,6 +1,7 @@
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useState, useEffect } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MOCK_PROFILES } from "../../lib/mock";
 import { getJSON } from "../../lib/storage";
 import { Profile } from "../../lib/types";
@@ -36,7 +37,10 @@ const NOISE_LABELS: Record<string, string> = {
 const LEASE_LABELS: Record<string, string> = {
   "4-months": "4 months",
   "8-months": "8 months",
-  "12-plus": "12+ months",
+  "12-months": "12 months",
+  "16-months": "16 months",
+  "16-plus": "16+ months",
+  "indefinite": "Indefinite",
 };
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -70,6 +74,7 @@ export default function ProfileScreen() {
   }, [id]);
 
   const isPreview = id === "me";
+  const insets = useSafeAreaInsets();
 
   if (profile === undefined) {
     return (
@@ -97,7 +102,7 @@ export default function ProfileScreen() {
     .join(" · ");
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
       {/* Header */}
       <Pressable onPress={() => router.back()} style={styles.backBtn}>
         <Text style={styles.backText}>← Back</Text>

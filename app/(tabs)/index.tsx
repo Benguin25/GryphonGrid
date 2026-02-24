@@ -33,7 +33,10 @@ const SLEEP_LABELS: Record<string, string> = {
 const LEASE_LABELS: Record<string, string> = {
   "4-months": "4 mo",
   "8-months": "8 mo",
-  "12-plus": "12+ mo",
+  "12-months": "12 mo",
+  "16-months": "16 mo",
+  "16-plus": "16+ mo",
+  "indefinite": "Indefinite",
 };
 
 function matchColor(score: number) {
@@ -81,7 +84,10 @@ const LEASE_OPTIONS: { value: LeaseDuration | "any"; label: string }[] = [
   { value: "any", label: "Any" },
   { value: "4-months", label: "4 mo" },
   { value: "8-months", label: "8 mo" },
-  { value: "12-plus", label: "12+ mo" },
+  { value: "12-months", label: "12 mo" },
+  { value: "16-months", label: "16 mo" },
+  { value: "16-plus", label: "16+ mo" },
+  { value: "indefinite", label: "Indefinite" },
 ];
 
 type SortKey = "default" | "match" | "age-asc" | "age-desc" | "name";
