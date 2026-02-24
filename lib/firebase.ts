@@ -24,15 +24,15 @@ import { initializeApp, getApps } from "firebase/app";
 import { initializeAuth, getAuth } from "firebase/auth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// ── Replace these with your project's values ─────────────────────────────────
+// ── Loaded from .env.local (never commit that file) ──────────────────────────
 const firebaseConfig = {
-  apiKey: "AIzaSyAUoZgfLz6DSwTPbICfWBRsN4PEF-l8puE",
-  authDomain: "gryphongrid-13257.firebaseapp.com",
-  projectId: "gryphongrid-13257",
-  storageBucket: "gryphongrid-13257.firebasestorage.app",
-  messagingSenderId: "267823198171",
-  appId: "1:267823198171:web:8a2e01a3da13f0773cc1fe",
-  measurementId: "G-LW44KZSVDN"
+  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId:     process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Google OAuth client IDs (from Google Cloud Console → Credentials)
