@@ -117,7 +117,7 @@ export default function RegisterScreen() {
             style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
             onPress={handleRegister}
             disabled={loading}>
-          >
+    
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (

@@ -3,11 +3,12 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { getJSON } from '../lib/storage';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -50,23 +51,53 @@ export default function RootLayout() {
   );
 }
 
-/** Redirect unauthenticated users to login, authenticated users away from auth screens. */
+/** Redirect unauthenticated users to login; redirect authenticated users through onboarding if needed. */
 function AuthGuard() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+
+  // Whenever the logged-in user changes, read their onboarding flag.
+  useEffect(() => {
+    if (!user) {
+      setOnboardingChecked(false);
+      setOnboardingDone(false);
+      return;
+    }
+    getJSON<boolean>(`gryphongrid_onboarded_${user.uid}`, false).then((done) => {
+      setOnboardingDone(done);
+      setOnboardingChecked(true);
+    });
+  }, [user?.uid]);
 
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup  = segments[0] === "(auth)";
+    const inOnboarding = segments[0] === "onboarding";
 
+    // 1. Not logged in → force login
     if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
-    } else if (user && inAuthGroup) {
+      return;
+    }
+
+    // 2. Logged in but still checking → wait
+    if (user && !onboardingChecked) return;
+
+    // 3. Logged in, onboarding not complete → go to onboarding
+    if (user && !onboardingDone && !inOnboarding) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    // 4. Logged in, onboarding done, but stuck on auth/onboarding → go to app
+    if (user && onboardingDone && (inAuthGroup || inOnboarding)) {
       router.replace("/(tabs)");
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, onboardingChecked, onboardingDone]);
 
   return null;
 }
@@ -83,6 +114,7 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
