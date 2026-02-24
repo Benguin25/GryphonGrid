@@ -6,6 +6,8 @@ import {
   Pressable,
   StyleSheet,
   Switch,
+  Modal,
+  FlatList,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -24,6 +26,98 @@ import {
   PetAllergy,
 } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
+
+const PURPLE = "#7c3aed";
+
+// ── Date picker field (pure JS, no native module) ────────────────────────────
+const MONTHS_EP = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS_EP   = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+const YEARS_EP  = Array.from({ length: 6  }, (_, i) => String(new Date().getFullYear() + i));
+
+function DatePickerField({
+  label, value, onChange,
+}: { label: string; value: string; onChange: (v: string) => void }) {
+  const now   = new Date();
+  const parts = value ? value.split("-") : [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")];
+  const [year,  setYear]  = useState(parts[0]);
+  const [month, setMonth] = useState(parts[1]);
+  const [day,   setDay]   = useState(parts[2]);
+  const [show,  setShow]  = useState(false);
+
+  function confirm() { onChange(`${year}-${month}-${day}`); setShow(false); }
+
+  const displayMonth = MONTHS_EP[parseInt(month, 10) - 1] ?? month;
+
+  function ColPicker({ items, selected, onSelect }: { items: string[]; selected: string; onSelect: (v: string) => void }) {
+    return (
+      <FlatList
+        data={items}
+        keyExtractor={(x) => x}
+        style={{ height: 180 }}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <Pressable
+            style={[dpStyles.colItem, item === selected && dpStyles.colItemActive]}
+            onPress={() => onSelect(item)}
+          >
+            <Text style={[dpStyles.colText, item === selected && dpStyles.colTextActive]}>{item}</Text>
+          </Pressable>
+        )}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
+        <Text style={[styles.dateBtnText, !value && styles.datePlaceholder]}>
+          {value ? `${displayMonth} ${day}, ${year}` : "Select a date"}
+        </Text>
+        <Text style={styles.dateIcon}>📅</Text>
+      </Pressable>
+      <Modal visible={show} transparent animationType="slide">
+        <View style={styles.dateModalBg}>
+          <View style={styles.dateModal}>
+            <View style={dpStyles.header}>
+              <Pressable onPress={() => setShow(false)}><Text style={dpStyles.cancel}>Cancel</Text></Pressable>
+              <Text style={dpStyles.title}>Select Date</Text>
+              <Pressable onPress={confirm}><Text style={dpStyles.done}>Done</Text></Pressable>
+            </View>
+            <View style={dpStyles.cols}>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Month</Text>
+                <ColPicker items={MONTHS_EP.map((_, i) => String(i + 1).padStart(2, "0"))} selected={month} onSelect={setMonth} />
+              </View>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Day</Text>
+                <ColPicker items={DAYS_EP} selected={day} onSelect={setDay} />
+              </View>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Year</Text>
+                <ColPicker items={YEARS_EP} selected={year} onSelect={setYear} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const dpStyles = StyleSheet.create({
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  title:  { fontSize: 15, fontWeight: "700", color: "#111827" },
+  cancel: { fontSize: 15, color: "#6b7280" },
+  done:   { fontSize: 15, color: PURPLE, fontWeight: "700" },
+  cols:   { flexDirection: "row", paddingHorizontal: 8, paddingBottom: 32 },
+  col:    { flex: 1, alignItems: "center" },
+  colLabel: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.8, marginTop: 10, marginBottom: 4 },
+  colItem: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginVertical: 1, width: "100%", alignItems: "center" },
+  colItemActive: { backgroundColor: PURPLE },
+  colText: { fontSize: 15, color: "#374151" },
+  colTextActive: { color: "#fff", fontWeight: "700" },
+});
 
 const DEFAULT_PROFILE: Profile = {
   id: "me",
@@ -390,17 +484,11 @@ export default function EditProfileScreen() {
         onSelect={(v) => set("leaseDuration", v)}
       />
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Move-in date</Text>
-        <TextInput
-          style={styles.input}
-          value={profile.moveInDate ?? ""}
-          onChangeText={(v) => set("moveInDate", v)}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#9ca3af"
-          keyboardType="numbers-and-punctuation"
-        />
-      </View>
+      <DatePickerField
+        label="Move-in date"
+        value={profile.moveInDate ?? ""}
+        onChange={(v) => set("moveInDate", v)}
+      />
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Budget range (optional)</Text>
@@ -574,4 +662,38 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 14,
   },
+  // Date picker
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#f9fafb",
+  },
+  dateBtnText: { fontSize: 15, color: "#111827" },
+  datePlaceholder: { color: "#9ca3af" },
+  dateIcon: { fontSize: 16 },
+  dateModalBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  dateModal: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+  },
+  dateModalDone: {
+    alignItems: "flex-end",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  dateModalDoneText: { color: PURPLE, fontSize: 16, fontWeight: "700" },
 });

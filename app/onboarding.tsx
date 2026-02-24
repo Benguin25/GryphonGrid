@@ -9,6 +9,8 @@
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
@@ -73,7 +75,7 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
 
 // ── Accordion quiz question ────────────────────────────────────────────────────
 function AccordionQuestion({
-  num, question, options, answer, open, onToggle, onSelect,
+  num, question, options, answer, open, onToggle, onSelect, onNext, isLast,
 }: {
   num: number;
   question: string;
@@ -82,6 +84,8 @@ function AccordionQuestion({
   open: boolean;
   onToggle: () => void;
   onSelect: (v: QuizAnswer) => void;
+  onNext?: () => void;
+  isLast?: boolean;
 }) {
   const selected = options.find((o) => o.value === answer);
   return (
@@ -114,11 +118,117 @@ function AccordionQuestion({
               </Text>
             </Pressable>
           ))}
+          {!!answer && onNext && (
+            <Pressable style={styles.accordionNextBtn} onPress={onNext}>
+              <Text style={styles.accordionNextText}>{isLast ? "Done ✓" : "Next →"}</Text>
+            </Pressable>
+          )}
         </View>
       )}
     </View>
   );
 }
+
+// ── Date picker field (pure JS, no native module) ────────────────────────────
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS   = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0"));
+const YEARS  = Array.from({ length: 6  }, (_, i) => String(new Date().getFullYear() + i));
+
+function DatePickerField({
+  label, value, onChange,
+}: { label: string; value: string; onChange: (v: string) => void }) {
+  const now   = new Date();
+  const parts = value ? value.split("-") : [String(now.getFullYear()), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")];
+  const [year,  setYear]  = useState(parts[0]);
+  const [month, setMonth] = useState(parts[1]);
+  const [day,   setDay]   = useState(parts[2]);
+  const [show,  setShow]  = useState(false);
+
+  function confirm() {
+    onChange(`${year}-${month}-${day}`);
+    setShow(false);
+  }
+
+  function ColPicker({ items, selected, onSelect }: { items: string[]; selected: string; onSelect: (v: string) => void }) {
+    return (
+      <FlatList
+        data={items}
+        keyExtractor={(x) => x}
+        style={{ height: 180 }}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+          <Pressable
+            style={[dpStyles.colItem, item === selected && dpStyles.colItemActive]}
+            onPress={() => onSelect(item)}
+          >
+            <Text style={[dpStyles.colText, item === selected && dpStyles.colTextActive]}>{item}</Text>
+          </Pressable>
+        )}
+      />
+    );
+  }
+
+  const displayMonth = MONTHS[parseInt(month, 10) - 1] ?? month;
+
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
+        <Text style={[styles.dateBtnText, !value && styles.datePlaceholder]}>
+          {value ? `${displayMonth} ${day}, ${year}` : "Select a date"}
+        </Text>
+        <Text style={styles.dateIcon}>📅</Text>
+      </Pressable>
+      <Modal visible={show} transparent animationType="slide">
+        <View style={styles.dateModalBg}>
+          <View style={styles.dateModal}>
+            <View style={dpStyles.header}>
+              <Pressable onPress={() => setShow(false)}>
+                <Text style={dpStyles.cancel}>Cancel</Text>
+              </Pressable>
+              <Text style={dpStyles.title}>Select Date</Text>
+              <Pressable onPress={confirm}>
+                <Text style={dpStyles.done}>Done</Text>
+              </Pressable>
+            </View>
+            <View style={dpStyles.cols}>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Month</Text>
+                <ColPicker
+                  items={MONTHS.map((_, i) => String(i + 1).padStart(2, "0"))}
+                  selected={month}
+                  onSelect={setMonth}
+                />
+              </View>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Day</Text>
+                <ColPicker items={DAYS} selected={day} onSelect={setDay} />
+              </View>
+              <View style={dpStyles.col}>
+                <Text style={dpStyles.colLabel}>Year</Text>
+                <ColPicker items={YEARS} selected={year} onSelect={setYear} />
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const dpStyles = StyleSheet.create({
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
+  title:  { fontSize: 15, fontWeight: "700", color: "#111827" },
+  cancel: { fontSize: 15, color: "#6b7280" },
+  done:   { fontSize: 15, color: PURPLE, fontWeight: "700" },
+  cols:   { flexDirection: "row", paddingHorizontal: 8, paddingBottom: 32 },
+  col:    { flex: 1, alignItems: "center" },
+  colLabel: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.8, marginTop: 10, marginBottom: 4 },
+  colItem: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginVertical: 1, width: "100%", alignItems: "center" },
+  colItemActive: { backgroundColor: PURPLE },
+  colText: { fontSize: 15, color: "#374151" },
+  colTextActive: { color: "#fff", fontWeight: "700" },
+});
 
 // ── Step heading ──────────────────────────────────────────────────────────────
 function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
@@ -245,10 +355,22 @@ function Step1({ p, set }: StepProps) {
         value={p.sleepSchedule}
         onSelect={(v) => set("sleepSchedule", v)}
       />
+      <Chips<"none" | "dog" | "cat" | "both">
+        label="Pets I own"
+        options={[
+          { value: "none", label: "No pets 🚫" },
+          { value: "dog", label: "Dog 🐶" },
+          { value: "cat", label: "Cat 🐱" },
+          { value: "both", label: "Both 🐶🐱" },
+        ]}
+        value={p.hasDog && p.hasCat ? "both" : p.hasDog ? "dog" : p.hasCat ? "cat" : "none"}
+        onSelect={(v) => {
+          set("hasDog", v === "dog" || v === "both");
+          set("hasCat", v === "cat" || v === "both");
+        }}
+      />
       <View style={styles.toggleGroup}>
-        <ToggleRow label="I have a dog 🐶" value={p.hasDog} onChange={(v) => set("hasDog", v)} />
-        <ToggleRow label="I have a cat 🐱" value={p.hasCat} onChange={(v) => set("hasCat", v)} />
-        <ToggleRow label="Open to pets" value={p.openToPets} onChange={(v) => set("openToPets", v)} />
+        <ToggleRow label="Open to living with pets" value={p.openToPets} onChange={(v) => set("openToPets", v)} />
       </View>
       <Chips<"none" | "dog" | "cat" | "both">
         label="Pet allergies"
@@ -284,17 +406,11 @@ function Step1({ p, set }: StepProps) {
         value={p.leaseDuration}
         onSelect={(v) => set("leaseDuration", v)}
       />
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Desired move-in date</Text>
-        <TextInput
-          style={styles.input}
-          value={p.moveInDate ?? ""}
-          onChangeText={(v) => set("moveInDate", v)}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#9ca3af"
-          keyboardType="numbers-and-punctuation"
-        />
-      </View>
+      <DatePickerField
+        label="Desired move-in date"
+        value={p.moveInDate ?? ""}
+        onChange={(v) => set("moveInDate", v)}
+      />
       <View style={styles.budgetRow}>
         <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
           <Text style={styles.fieldLabel}>Budget min ($/mo)</Text>
@@ -333,11 +449,8 @@ function Step2({
   setAnswer: (i: number, a: QuizAnswer) => void;
 }) {
   function toggle(i: number) { setOpenQ(openQ === i ? null : i); }
-  function pick(i: number, v: QuizAnswer) {
-    setAnswer(i, v);
-    const next = [0, 1, 2].find((j) => j > i && !answers[j]);
-    setOpenQ(next !== undefined ? next : null);
-  }
+  function pick(i: number, v: QuizAnswer) { setAnswer(i, v); }
+  function next(i: number) { setOpenQ(i + 1 < 3 ? i + 1 : null); }
   return (
     <>
       <StepHeading
@@ -354,6 +467,7 @@ function Step2({
           { value: "D", label: "Comfortable with social drinking and occasional indoor vaping or cannabis use." },
         ]}
         answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
+        onNext={() => next(0)}
       />
       <AccordionQuestion
         num={2}
@@ -365,6 +479,7 @@ function Step2({
           { value: "D", label: "Pet parent at heart — I'll probably end up helping care for any pet in the house." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
+        onNext={() => next(1)}
       />
       <AccordionQuestion
         num={3}
@@ -376,6 +491,7 @@ function Step2({
           { value: "D", label: "Large footprint — camping gear, multiple bikes, or studio supplies needing extra storage." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
+        onNext={() => next(2)} isLast
       />
     </>
   );
@@ -391,11 +507,8 @@ function Step3({
   setAnswer: (i: number, a: QuizAnswer) => void;
 }) {
   function toggle(i: number) { setOpenQ(openQ === i ? null : i); }
-  function pick(i: number, v: QuizAnswer) {
-    setAnswer(i, v);
-    const next = [0, 1, 2].find((j) => j > i && !answers[j]);
-    setOpenQ(next !== undefined ? next : null);
-  }
+  function pick(i: number, v: QuizAnswer) { setAnswer(i, v); }
+  function next(i: number) { setOpenQ(i + 1 < 3 ? i + 1 : null); }
   return (
     <>
       <StepHeading
@@ -412,6 +525,7 @@ function Step3({
           { value: "D", label: "Rarely home — I usually stay out with friends until I'm ready to sleep." },
         ]}
         answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
+        onNext={() => next(0)}
       />
       <AccordionQuestion
         num={2}
@@ -423,6 +537,7 @@ function Step3({
           { value: "D", label: "Love hosting — I'd like small gatherings or dinner parties 3+ times a week." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
+        onNext={() => next(1)}
       />
       <AccordionQuestion
         num={3}
@@ -434,6 +549,7 @@ function Step3({
           { value: "D", label: "High energy — I usually have music or TV going at all times." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
+        onNext={() => next(2)} isLast
       />
     </>
   );
@@ -757,6 +873,15 @@ const styles = StyleSheet.create({
   accordionQ: { fontSize: 14, color: "#111827", fontWeight: "600", lineHeight: 20 },
   accordionSelected: { fontSize: 13, color: PURPLE, fontWeight: "500", marginTop: 6 },
   accordionChevron: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
+  accordionNextBtn: {
+    marginTop: 8,
+    alignSelf: "flex-end",
+    backgroundColor: PURPLE,
+    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  accordionNextText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   accordionBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8 },
   optionRow: {
     flexDirection: "row",
@@ -846,4 +971,38 @@ const styles = StyleSheet.create({
   },
   btnNextText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   btnDisabled: { opacity: 0.6 },
+  // Date picker
+  dateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "#f9fafb",
+  },
+  dateBtnText: { fontSize: 15, color: "#111827" },
+  datePlaceholder: { color: "#9ca3af" },
+  dateIcon: { fontSize: 16 },
+  dateModalBg: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  dateModal: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+  },
+  dateModalDone: {
+    alignItems: "flex-end",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  dateModalDoneText: { color: PURPLE, fontSize: 16, fontWeight: "700" },
 });
