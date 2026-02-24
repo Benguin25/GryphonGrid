@@ -372,6 +372,7 @@ function Step0({ p, set }: StepProps) {
           placeholder="Your first name"
           placeholderTextColor="#9ca3af"
           autoCapitalize="words"
+          autoFocus={false}
         />
       </View>
       <View style={styles.field}>
@@ -383,6 +384,7 @@ function Step0({ p, set }: StepProps) {
           placeholder="e.g. 22"
           placeholderTextColor="#9ca3af"
           keyboardType="numeric"
+          autoFocus={false}
         />
       </View>
       <Chips<Gender>

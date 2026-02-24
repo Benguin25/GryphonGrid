@@ -10,7 +10,7 @@ import React, {
   createContext, useContext, useEffect, useRef, useState,
 } from "react";
 import {
-  Modal, View, Text, Pressable, Image, StyleSheet, ActivityIndicator,
+  Modal, View, Text, Pressable, Image, StyleSheet, ActivityIndicator, Keyboard,
 } from "react-native";
 import { RoommateRequest } from "../lib/types";
 import {
@@ -113,6 +113,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
         visible={!!currentRequest}
         transparent
         animationType="fade"
+        onShow={() => Keyboard.dismiss()}
         onRequestClose={() => {
           if (currentRequest) seenIds.current.add(currentRequest.id);
           setCurrentRequest(null);
