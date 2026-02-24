@@ -31,7 +31,14 @@
     },
     "plugins": [
       "expo-router",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GryphonGrid needs access to your photos so you can set a profile picture.",
+          "cameraPermission": "GryphonGrid needs access to your camera so you can take a profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

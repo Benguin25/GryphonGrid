@@ -8,7 +8,10 @@ import {
   Switch,
   Modal,
   FlatList,
+  Image,
+  Alert,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -214,6 +217,95 @@ function ScalePicker({
   );
 }
 
+// ── Profile photo picker ──────────────────────────────────────────────────────
+function PhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
+  async function pick(useCamera: boolean) {
+    const perm = useCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      Alert.alert(
+        "Permission required",
+        useCamera ? "Camera access is needed." : "Photo library access is needed.",
+      );
+      return;
+    }
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"],
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.7,
+        });
+    if (!result.canceled && result.assets.length > 0) {
+      onChange(result.assets[0].uri);
+    }
+  }
+
+  function prompt() {
+    Alert.alert("Profile Photo", "Choose a source", [
+      { text: "Camera", onPress: () => pick(true) },
+      { text: "Photo Library", onPress: () => pick(false) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
+  return (
+    <View style={[styles.fieldGroup, { alignItems: "center" }]}>
+      <Pressable onPress={prompt} style={{ position: "relative" }}>
+        {value ? (
+          <Image source={{ uri: value }} style={photoPickerStyles.avatar} />
+        ) : (
+          <View style={[photoPickerStyles.avatar, photoPickerStyles.placeholder]}>
+            <Text style={photoPickerStyles.placeholderIcon}>📷</Text>
+            <Text style={photoPickerStyles.placeholderSub}>Add photo</Text>
+          </View>
+        )}
+        <View style={photoPickerStyles.badge}>
+          <Text style={photoPickerStyles.badgeText}>✎</Text>
+        </View>
+      </Pressable>
+      {!!value && (
+        <Pressable onPress={() => onChange("")} style={{ marginTop: 8 }}>
+          <Text style={photoPickerStyles.remove}>Remove photo</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const photoPickerStyles = StyleSheet.create({
+  avatar: { width: 100, height: 100, borderRadius: 50 },
+  placeholder: {
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholderIcon: { fontSize: 28 },
+  placeholderSub: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
+  badge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: PURPLE,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  badgeText: { color: "#fff", fontSize: 12 },
+  remove: { color: "#ef4444", fontSize: 13 },
+});
+
 // ── Section header ────────────────────────────────────────────────────────────
 function SectionHeader({ number, title, subtitle }: { number: string; title: string; subtitle: string }) {
   return (
@@ -338,18 +430,7 @@ export default function EditProfileScreen() {
         />
       </View>
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Profile photo URL</Text>
-        <TextInput
-          style={styles.input}
-          value={profile.photoUrl ?? ""}
-          onChangeText={(v) => set("photoUrl", v)}
-          placeholder="https://…"
-          placeholderTextColor="#9ca3af"
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-      </View>
+      <PhotoPicker value={profile.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
 
       {/* ── Section 2: Lifestyle ──────────────────────────────────────── */}
       <SectionHeader number="2" title="Lifestyle" subtitle="These are your actual matching levers." />

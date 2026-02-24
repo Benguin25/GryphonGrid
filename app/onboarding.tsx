@@ -11,7 +11,10 @@
   Platform,
   Modal,
   FlatList,
+  Image,
+  Alert,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
@@ -273,11 +276,92 @@ function guestsFrom(a?: string): GuestFrequency {
   return "frequently";
 }
 
+// ── Onboarding photo picker ───────────────────────────────────────────────────
+function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
+  async function pick(useCamera: boolean) {
+    const perm = useCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      Alert.alert("Permission required", useCamera ? "Camera access is needed." : "Photo library access is needed.");
+      return;
+    }
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+    if (!result.canceled && result.assets.length > 0) onChange(result.assets[0].uri);
+  }
+
+  function prompt() {
+    Alert.alert("Profile Photo", "Choose a source", [
+      { text: "Camera", onPress: () => pick(true) },
+      { text: "Photo Library", onPress: () => pick(false) },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
+
+  return (
+    <View style={obPhotoStyles.wrap}>
+      <Pressable onPress={prompt} style={{ position: "relative" }}>
+        {value ? (
+          <Image source={{ uri: value }} style={obPhotoStyles.avatar} />
+        ) : (
+          <View style={[obPhotoStyles.avatar, obPhotoStyles.placeholder]}>
+            <Text style={obPhotoStyles.icon}>📷</Text>
+            <Text style={obPhotoStyles.hint}>Add photo</Text>
+          </View>
+        )}
+        <View style={obPhotoStyles.badge}>
+          <Text style={obPhotoStyles.badgeText}>✎</Text>
+        </View>
+      </Pressable>
+      <Text style={obPhotoStyles.caption}>Profile photo{value ? "" : " (optional)"}</Text>
+      {!!value && (
+        <Pressable onPress={() => onChange("")}>
+          <Text style={obPhotoStyles.remove}>Remove</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const obPhotoStyles = StyleSheet.create({
+  wrap: { alignItems: "center", marginBottom: 20, gap: 6 },
+  avatar: { width: 100, height: 100, borderRadius: 50 },
+  placeholder: {
+    backgroundColor: "#f3f4f6",
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  icon: { fontSize: 28 },
+  hint: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
+  badge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: PURPLE,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  badgeText: { color: "#fff", fontSize: 12 },
+  caption: { fontSize: 12, color: "#6b7280", fontWeight: "500" },
+  remove: { fontSize: 12, color: "#ef4444" },
+});
+
 // ── Step 0: Identity + basics ─────────────────────────────────────────────────
 function Step0({ p, set }: StepProps) {
   return (
     <>
       <StepHeading title="About you" subtitle="Let's start with the basics." />
+      <OnboardingPhotoPicker value={p.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
       <View style={styles.field}>
         <Text style={styles.fieldLabel}>First name *</Text>
         <TextInput

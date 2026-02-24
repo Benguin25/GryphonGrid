@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TextInput,
   Switch,
+  Modal,
   Platform,
   UIManager,
 } from "react-native";
@@ -79,6 +80,117 @@ function ProfileCard({ item, score, showScore }: { item: Profile; score?: number
     </Pressable>
   );
 }
+
+// ── Generic dropdown picker ───────────────────────────────────────────────────
+function DropdownPicker<T extends string>({
+  label,
+  options,
+  value,
+  onSelect,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onSelect: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <>
+      <View style={dropStyles.group}>
+        <Text style={dropStyles.label}>{label}</Text>
+        <Pressable style={dropStyles.trigger} onPress={() => setOpen(true)}>
+          <Text style={dropStyles.triggerText}>{selected?.label ?? "—"}</Text>
+          <Text style={dropStyles.chevron}>▾</Text>
+        </Pressable>
+      </View>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={dropStyles.backdrop} onPress={() => setOpen(false)}>
+          <View style={dropStyles.sheet}>
+            <Text style={dropStyles.sheetTitle}>{label}</Text>
+            {options.map((opt) => {
+              const active = opt.value === value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[dropStyles.option, active && dropStyles.optionActive]}
+                  onPress={() => { onSelect(opt.value); setOpen(false); }}
+                >
+                  <Text style={[dropStyles.optionText, active && dropStyles.optionTextActive]}>
+                    {opt.label}
+                  </Text>
+                  {active && <Text style={dropStyles.checkmark}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+const dropStyles = StyleSheet.create({
+  group: { gap: 5 },
+  label: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  trigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 9,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    backgroundColor: "#f9fafb",
+    minWidth: 120,
+    gap: 8,
+  },
+  triggerText: { fontSize: 13, color: "#111827", fontWeight: "500", flex: 1 },
+  chevron: { fontSize: 11, color: "#6b7280" },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 32,
+  },
+  sheetTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  optionActive: { backgroundColor: "#f0edff" },
+  optionText: { fontSize: 15, color: "#111827" },
+  optionTextActive: { color: PURPLE, fontWeight: "700" },
+  checkmark: { fontSize: 15, color: PURPLE, fontWeight: "700" },
+});
 
 const LEASE_OPTIONS: { value: LeaseDuration | "any"; label: string }[] = [
   { value: "any", label: "Any" },
@@ -177,8 +289,8 @@ export default function DiscoverScreen() {
 
       {/* Filter panel */}
       <View style={styles.filterPanel}>
-        {/* Row 1: Age + Lease */}
         <View style={styles.filterRow}>
+          {/* Age */}
           <View style={styles.filterGroup}>
             <Text style={styles.filterLabel}>Age</Text>
             <View style={styles.ageRow}>
@@ -206,41 +318,27 @@ export default function DiscoverScreen() {
 
           <View style={styles.filterDivider} />
 
-          <View style={[styles.filterGroup, { flex: 1 }]}>
-            <Text style={styles.filterLabel}>Lease</Text>
-            <View style={styles.chipWrap}>
-              {LEASE_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.chip, leaseFilter === opt.value && styles.chipActive]}
-                  onPress={() => setLeaseFilter(opt.value)}
-                >
-                  <Text style={[styles.chipText, leaseFilter === opt.value && styles.chipTextActive]}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </View>
+          {/* Lease dropdown */}
+          <DropdownPicker<LeaseDuration | "any">
+            label="Lease"
+            options={LEASE_OPTIONS}
+            value={leaseFilter}
+            onSelect={setLeaseFilter}
+          />
 
-        {/* Row 2: Sort + Match toggle */}
-        <View style={styles.filterRow}>
-          <View style={[styles.filterGroup, { flex: 1 }]}>
-            <Text style={styles.filterLabel}>Sort by</Text>
-            <View style={styles.chipWrap}>
-              {SORT_OPTIONS.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.chip, sortBy === opt.value && styles.sortChipActive]}
-                  onPress={() => setSortBy(opt.value)}
-                >
-                  <Text style={[styles.chipText, sortBy === opt.value && styles.sortChipTextActive]}>{opt.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
+          <View style={styles.filterDivider} />
 
+          {/* Sort dropdown */}
+          <DropdownPicker<SortKey>
+            label="Sort"
+            options={SORT_OPTIONS}
+            value={sortBy}
+            onSelect={setSortBy}
+          />
+
+          {/* Match % toggle */}
           <View style={styles.compatToggle}>
-            <Text style={styles.compatLabel}>Show Match %</Text>
+            <Text style={styles.compatLabel}>Match %</Text>
             <Switch
               value={showScore}
               onValueChange={setShowScore}
@@ -313,15 +411,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
     padding: 12,
-    gap: 12,
   },
   filterRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    alignItems: "flex-end",
+    flexWrap: "wrap",
+    gap: 10,
   },
   filterGroup: {
-    gap: 6,
+    gap: 5,
   },
   filterLabel: {
     fontSize: 11,
@@ -341,7 +439,7 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     borderRadius: 8,
     paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingVertical: 7,
     fontSize: 13,
     color: "#111827",
     backgroundColor: "#f9fafb",
@@ -350,36 +448,18 @@ const styles = StyleSheet.create({
   ageSep: { fontSize: 13, color: "#9ca3af" },
   filterDivider: {
     width: 1,
+    height: 36,
     backgroundColor: "#e5e7eb",
-    alignSelf: "stretch",
-    marginTop: 18,
+    alignSelf: "flex-end",
+    marginBottom: 2,
   },
-  chipWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    backgroundColor: "#f9fafb",
-  },
-  chipActive: { backgroundColor: PURPLE, borderColor: PURPLE },
-  chipText: { fontSize: 12, color: "#374151", fontWeight: "500" },
-  chipTextActive: { color: "#fff" },
-  sortChipActive: { backgroundColor: "#f0edff", borderColor: PURPLE },
-  sortChipTextActive: { color: PURPLE, fontWeight: "700" },
   compatToggle: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     gap: 4,
     marginLeft: "auto" as any,
-    marginTop: 16,
   },
-  compatLabel: { fontSize: 12, color: "#6b7280", fontWeight: "600" },
+  compatLabel: { fontSize: 11, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5 },
 
   // Result count
   resultCount: {
