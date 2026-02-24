@@ -12,11 +12,11 @@ import {
   UIManager,
 } from "react-native";
 import { useState, useMemo, useEffect } from "react";
-import { MOCK_PROFILES, computeMatch } from "../../lib/mock";
+import { computeMatch } from "../../lib/mock";
 import { Profile, LeaseDuration } from "../../lib/types";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { loadProfile } from "../../lib/db";
+import { loadProfile, loadAllProfiles } from "../../lib/db";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -223,12 +223,22 @@ const FALLBACK_ME: Profile = {
 export default function DiscoverScreen() {
   const { user } = useAuth();
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     loadProfile(user.uid).then((p) =>
       setMe({ ...FALLBACK_ME, ...(p ?? {}), id: user.uid })
     );
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingProfiles(true);
+    loadAllProfiles(user.uid)
+      .then(setProfiles)
+      .finally(() => setLoadingProfiles(false));
   }, [user?.uid]);
 
   const [query, setQuery] = useState("");
@@ -243,7 +253,7 @@ export default function DiscoverScreen() {
     const minAge = ageMin ? parseInt(ageMin, 10) : undefined;
     const maxAge = ageMax ? parseInt(ageMax, 10) : undefined;
 
-    const filtered = MOCK_PROFILES
+    const filtered = profiles
       .map((p) => ({ profile: p, score: computeMatch(me, p) }))
       .filter(({ profile: p }) => {
         if (q && !`${p.firstName} ${p.program} ${p.bio}`.toLowerCase().includes(q)) return false;
@@ -262,7 +272,7 @@ export default function DiscoverScreen() {
         default:         return 0;
       }
     });
-  }, [query, ageMin, ageMax, leaseFilter, sortBy, me]);
+  }, [query, ageMin, ageMax, leaseFilter, sortBy, me, profiles]);
 
   const listHeader = (
     <>
@@ -369,9 +379,15 @@ export default function DiscoverScreen() {
           <ProfileCard item={item.profile} score={item.score} showScore={showScore} />
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No profiles match your filters.</Text>
-          </View>
+          loadingProfiles ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>Loading profiles…</Text>
+            </View>
+          ) : (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No profiles match your filters.</Text>
+            </View>
+          )
         }
       />
     </View>

@@ -39,4 +39,19 @@ export type Profile = {
   moveInDate?: string; // "YYYY-MM-DD"
   budgetMin?: number;
   budgetMax?: number;
+
+  // Section 4: Private (only revealed post-match)
+  instagramHandle?: string;
+};
+
+export type RequestStatus = "pending" | "accepted" | "declined";
+
+export type RoommateRequest = {
+  id: string;         // "${fromUid}_${toUid}"
+  fromUid: string;
+  toUid: string;
+  fromName: string;   // snapshot so we can show name without a second read
+  fromPhoto?: string;
+  status: RequestStatus;
+  createdAt: string;
 };

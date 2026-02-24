@@ -432,6 +432,25 @@ export default function EditProfileScreen() {
 
       <PhotoPicker value={profile.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
 
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>
+          Instagram{" "}
+          <Text style={styles.charCount}>(optional · only visible after matching)</Text>
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#6b7280" }}>@</Text>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={profile.instagramHandle ?? ""}
+            onChangeText={(v) => set("instagramHandle", v.replace(/[^a-zA-Z0-9._]/g, ""))}
+            placeholder="your_handle"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      </View>
+
       {/* ── Section 2: Lifestyle ──────────────────────────────────────── */}
       <SectionHeader number="2" title="Lifestyle" subtitle="These are your actual matching levers." />
 

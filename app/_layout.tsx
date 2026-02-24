@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { RequestProvider } from '../context/RequestContext';
 import { loadOnboarded } from '../lib/db';
 
 export {
@@ -46,7 +47,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <RequestProvider>
+        <RootLayoutNav />
+      </RequestProvider>
     </AuthProvider>
   );
 }

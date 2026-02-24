@@ -1,11 +1,11 @@
-import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MOCK_PROFILES } from "../../lib/mock";
 import { loadProfile } from "../../lib/db";
-import { Profile } from "../../lib/types";
+import { Profile, RoommateRequest } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
+import { useRequests } from "../../context/RequestContext";
 
 const PURPLE = "#7c3aed";
 
@@ -85,17 +85,43 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { sendRequest, getRelationship } = useRequests();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
+  const [relationship, setRelationship] = useState<RoommateRequest | null>(null);
+  const [requesting, setRequesting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       if (id === "me") {
         loadProfile(user?.uid ?? "").then(setProfile);
       } else {
-        setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
+        loadProfile(id).then(setProfile);
+        if (user?.uid && id !== user.uid) {
+          getRelationship(id).then(setRelationship);
+        }
       }
     }, [id, user?.uid])
   );
+
+  async function handleRequest() {
+    if (!id || id === "me") return;
+    setRequesting(true);
+    try {
+      const result = await sendRequest(id);
+      if (result === "sent") {
+        setRelationship({ id: "", fromUid: user!.uid, toUid: id, fromName: "", status: "pending", createdAt: "" });
+        Alert.alert("Request Sent! 🎉", "They'll be notified and can accept or decline.");
+      } else if (result === "already_sent") {
+        Alert.alert("Already Sent", "You've already sent this person a request.");
+      } else {
+        Alert.alert("Already Matched", "You're already matched with this person!");
+      }
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setRequesting(false);
+    }
+  }
 
   const isPreview = id === "me";
   const insets = useSafeAreaInsets();
@@ -155,6 +181,14 @@ export default function ProfileScreen() {
       <Text style={styles.program}>{profile.program}</Text>
       {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
+      {/* Instagram — only visible after accepting each other */}
+      {!isPreview && relationship?.status === "accepted" && !!profile.instagramHandle && (
+        <View style={styles.igBox}>
+          <Text style={styles.igLabel}>Instagram</Text>
+          <Text style={styles.igHandle}>@{profile.instagramHandle}</Text>
+        </View>
+      )}
+
       {/* Lifestyle */}
       <Section title="Lifestyle">
         <InfoRow label="Sleep schedule" value={SLEEP_LABELS[profile.sleepSchedule]} />
@@ -195,11 +229,37 @@ export default function ProfileScreen() {
         )}
       </Section>
 
-      {!isPreview && (
-        <Pressable style={styles.requestBtn}>
-          <Text style={styles.requestBtnText}>Request as roommate</Text>
-        </Pressable>
-      )}
+      {!isPreview && (() => {
+        if (relationship?.status === "accepted") {
+          return (
+            <View style={[styles.requestBtn, styles.matchedBtn]}>
+              <Text style={styles.requestBtnText}>✓ Matched!</Text>
+            </View>
+          );
+        }
+        if (relationship?.status === "pending") {
+          const isSender = relationship.fromUid === user?.uid;
+          return (
+            <View style={[styles.requestBtn, styles.pendingBtn]}>
+              <Text style={[styles.requestBtnText, { color: "#374151" }]}>
+                {isSender ? "⏳ Request Sent" : "⏳ They want to match with you!"}
+              </Text>
+            </View>
+          );
+        }
+        return (
+          <Pressable
+            style={[styles.requestBtn, requesting && styles.btnDisabled]}
+            onPress={handleRequest}
+            disabled={requesting}
+          >
+            {requesting
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.requestBtnText}>Request as Roommate 🏠</Text>
+            }
+          </Pressable>
+        );
+      })()}
     </ScrollView>
   );
 }
@@ -283,6 +343,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 16,
   },
+  matchedBtn: { backgroundColor: "#16a34a" },
+  pendingBtn: { backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb" },
+  btnDisabled: { opacity: 0.6 },
   requestBtnText: {
     textAlign: "center",
     fontSize: 16,
@@ -290,6 +353,16 @@ const styles = StyleSheet.create({
     color: "#fff",
     letterSpacing: 0.3,
   },
+  igBox: {
+    marginTop: 12,
+    backgroundColor: "#f0edff",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  igLabel: { fontSize: 11, fontWeight: "700", color: PURPLE, textTransform: "uppercase", letterSpacing: 0.5 },
+  igHandle: { fontSize: 17, fontWeight: "700", color: "#111", marginTop: 2 },
   previewBanner: {
     backgroundColor: "#f0edff",
     borderRadius: 10,

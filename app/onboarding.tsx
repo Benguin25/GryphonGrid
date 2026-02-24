@@ -420,6 +420,21 @@ function Step0({ p, set }: StepProps) {
           textAlignVertical="top"
         />
       </View>
+      <View style={styles.field}>
+        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional · only shared after matching)</Text></Text>
+        <View style={styles.igRow}>
+          <Text style={styles.igAt}>@</Text>
+          <TextInput
+            style={[styles.input, { flex: 1 }]}
+            value={p.instagramHandle ?? ""}
+            onChangeText={(v) => set("instagramHandle", v.replace(/[^a-zA-Z0-9._]/g, ""))}
+            placeholder="your_handle"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+      </View>
     </>
   );
 }
@@ -902,6 +917,8 @@ const styles = StyleSheet.create({
   field: { marginBottom: 20 },
   fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
   charCount: { fontWeight: "400", color: "#9ca3af" },
+  igRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  igAt: { fontSize: 16, fontWeight: "600", color: "#6b7280", paddingBottom: 2 },
   input: {
     borderWidth: 1,
     borderColor: "#e5e7eb",
