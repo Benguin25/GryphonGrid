@@ -12,10 +12,9 @@ import {
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { GOOGLE_WEB_CLIENT_ID } from "../../lib/firebase";
 
 export default function LoginScreen() {
-  const { signIn, signInWithGoogle, googleLoading } = useAuth();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -85,9 +84,9 @@ export default function LoginScreen() {
           />
 
           <Pressable
-            style={[styles.btn, styles.btnPrimary, (loading || googleLoading) && styles.btnDisabled]}
+            style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
             onPress={handleLogin}
-            disabled={loading || googleLoading}
+            disabled={loading}>
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -96,27 +95,7 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Google Sign-In (hidden if client IDs not configured) */}
-          {GOOGLE_WEB_CLIENT_ID ? (
-            <Pressable
-              style={[styles.btn, styles.btnGoogle, (loading || googleLoading) && styles.btnDisabled]}
-              onPress={signInWithGoogle}
-              disabled={loading || googleLoading}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#374151" />
-              ) : (
-                <Text style={styles.btnGoogleText}>Continue with Google</Text>
-              )}
-            </Pressable>
-          ) : null}
         </View>
 
         {/* Footer */}

@@ -12,10 +12,9 @@ import {
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { GOOGLE_WEB_CLIENT_ID } from "../../lib/firebase";
 
 export default function RegisterScreen() {
-  const { signUp, signInWithGoogle, googleLoading } = useAuth();
+  const { signUp } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -115,9 +114,9 @@ export default function RegisterScreen() {
           />
 
           <Pressable
-            style={[styles.btn, styles.btnPrimary, (loading || googleLoading) && styles.btnDisabled]}
+            style={[styles.btn, styles.btnPrimary, loading && styles.btnDisabled]}
             onPress={handleRegister}
-            disabled={loading || googleLoading}
+            disabled={loading}>
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -126,27 +125,7 @@ export default function RegisterScreen() {
             )}
           </Pressable>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Google Sign-In */}
-          {GOOGLE_WEB_CLIENT_ID ? (
-            <Pressable
-              style={[styles.btn, styles.btnGoogle, (loading || googleLoading) && styles.btnDisabled]}
-              onPress={signInWithGoogle}
-              disabled={loading || googleLoading}
-            >
-              {googleLoading ? (
-                <ActivityIndicator color="#374151" />
-              ) : (
-                <Text style={styles.btnGoogleText}>Continue with Google</Text>
-              )}
-            </Pressable>
-          ) : null}
         </View>
 
         {/* Footer */}
