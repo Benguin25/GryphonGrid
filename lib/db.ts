@@ -134,6 +134,36 @@ export async function loadAcceptedMatches(uid: string): Promise<Profile[]> {
 }
 
 /**
+ * Load all pending requests for a user — both sent and received.
+ * Returns array of { profile, direction } so the UI can label them correctly.
+ */
+export async function loadPendingRequests(
+  uid: string,
+): Promise<{ profile: Profile; direction: "sent" | "received" }[]> {
+  const [sentSnap, receivedSnap] = await Promise.all([
+    getDocs(query(collection(db, "requests"), where("fromUid", "==", uid), where("status", "==", "pending"))),
+    getDocs(query(collection(db, "requests"), where("toUid",   "==", uid), where("status", "==", "pending"))),
+  ]);
+
+  const results: { profile: Profile; direction: "sent" | "received" }[] = [];
+
+  await Promise.all([
+    ...sentSnap.docs.map(async (d) => {
+      const req = d.data() as RoommateRequest;
+      const profile = await loadProfile(req.toUid);
+      if (profile) results.push({ profile, direction: "sent" });
+    }),
+    ...receivedSnap.docs.map(async (d) => {
+      const req = d.data() as RoommateRequest;
+      const profile = await loadProfile(req.fromUid);
+      if (profile) results.push({ profile, direction: "received" });
+    }),
+  ]);
+
+  return results;
+}
+
+/**
  * Subscribe (real-time) to incoming pending requests for a user.
  * Calls cb immediately and on every change.
  * Returns the unsubscribe function.

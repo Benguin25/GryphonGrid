@@ -1,10 +1,10 @@
-import { View, Text, Image, Pressable, FlatList, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList } from "react-native";
 import { useState, useEffect } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { loadProfile, loadAcceptedMatches } from "../../lib/db";
+import { loadProfile, loadAcceptedMatches, loadPendingRequests } from "../../lib/db";
 
 const PURPLE = "#7c3aed";
 
@@ -26,22 +26,25 @@ function matchColor(score: number) {
 export default function MatchesScreen() {
   const { user } = useAuth();
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
-  const [matches, setMatches] = useState<Profile[]>([]);
+  const [accepted, setAccepted] = useState<Profile[]>([]);
+  const [pending, setPending] = useState<{ profile: Profile; direction: "sent" | "received" }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
-    loadProfile(user.uid).then((p) => {
-      if (p) setMe(p);
-    });
+    loadProfile(user.uid).then((p) => { if (p) setMe(p); });
   }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    loadAcceptedMatches(user.uid)
-      .then(setMatches)
-      .finally(() => setLoading(false));
+    Promise.all([
+      loadAcceptedMatches(user.uid),
+      loadPendingRequests(user.uid),
+    ]).then(([acc, pend]) => {
+      setAccepted(acc);
+      setPending(pend);
+    }).finally(() => setLoading(false));
   }, [user?.uid]);
 
   if (loading) {
@@ -52,14 +55,33 @@ export default function MatchesScreen() {
     );
   }
 
+  type ListItem =
+    | { kind: "accepted"; profile: Profile }
+    | { kind: "pending";  profile: Profile; direction: "sent" | "received" };
+
+  const sections = [
+    ...(accepted.length > 0 ? [{
+      title: "✅ Matched",
+      data: accepted.map((p): ListItem => ({ kind: "accepted", profile: p })),
+    }] : []),
+    ...(pending.length > 0 ? [{
+      title: "⏳ Pending",
+      data: pending.map((x): ListItem => ({ kind: "pending", profile: x.profile, direction: x.direction })),
+    }] : []),
+  ];
+
   return (
     <View style={styles.container}>
-      <FlatList
-        data={matches}
-        keyExtractor={(p) => p.id}
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.profile.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        stickySectionHeadersEnabled={false}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        renderSectionHeader={({ section }) => (
+          <Text style={styles.sectionHeader}>{section.title}</Text>
+        )}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>🏠</Text>
@@ -70,33 +92,40 @@ export default function MatchesScreen() {
           </View>
         }
         renderItem={({ item }) => {
-          const score = computeMatch(me, item);
+          const score = computeMatch(me, item.profile);
+          const isAccepted = item.kind === "accepted";
+          const isSent     = item.kind === "pending" && item.direction === "sent";
           return (
             <Pressable
               style={styles.card}
-              onPress={() => router.push(`/profile/${item.id}`)}
+              onPress={() => router.push(`/profile/${item.profile.id}`)}
             >
               <Image
-                source={{ uri: item.photoUrl ?? `https://i.pravatar.cc/300?u=${item.id}` }}
+                source={{ uri: item.profile.photoUrl ?? `https://i.pravatar.cc/300?u=${item.profile.id}` }}
                 style={styles.photo}
               />
               <View style={styles.cardBody}>
                 <Text style={styles.cardName}>
-                  {item.firstName}{item.age ? `, ${item.age}` : ""}
+                  {item.profile.firstName}{item.profile.age ? `, ${item.profile.age}` : ""}
                 </Text>
-                <Text style={styles.cardProgram}>{item.program}</Text>
-                {item.instagramHandle ? (
+                <Text style={styles.cardProgram}>{item.profile.program}</Text>
+                {isAccepted && item.profile.instagramHandle ? (
                   <View style={styles.igRow}>
                     <Text style={styles.igIcon}>📸</Text>
-                    <Text style={styles.igHandle}>@{item.instagramHandle}</Text>
+                    <Text style={styles.igHandle}>@{item.profile.instagramHandle}</Text>
                   </View>
                 ) : (
-                  <Text style={styles.cardBio} numberOfLines={2}>{item.bio}</Text>
+                  <Text style={styles.cardBio} numberOfLines={2}>{item.profile.bio}</Text>
                 )}
               </View>
               <View style={styles.scoreCol}>
                 <Text style={[styles.score, { color: matchColor(score) }]}>{score}%</Text>
                 <Text style={styles.scoreLabel}>match</Text>
+                {!isAccepted && (
+                  <View style={[styles.pendingBadge, isSent ? styles.pendingBadgeSent : styles.pendingBadgeReceived]}>
+                    <Text style={styles.pendingBadgeText}>{isSent ? "Sent" : "Incoming"}</Text>
+                  </View>
+                )}
               </View>
             </Pressable>
           );
@@ -138,4 +167,23 @@ const styles = StyleSheet.create({
   scoreCol:   { alignItems: "center", minWidth: 48 },
   score:      { fontSize: 22, fontWeight: "800" },
   scoreLabel: { fontSize: 11, color: "#9ca3af", marginTop: -2 },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#6b7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginTop: 16,
+  },
+  pendingBadge: {
+    marginTop: 4,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    alignItems: "center",
+  },
+  pendingBadgeSent:     { backgroundColor: "#f0edff" },
+  pendingBadgeReceived: { backgroundColor: "#fef9c3" },
+  pendingBadgeText: { fontSize: 9, fontWeight: "700", color: "#374151" },
 });
