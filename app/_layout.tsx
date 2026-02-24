@@ -59,18 +59,21 @@ function AuthGuard() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
 
-  // Whenever the logged-in user changes, read their onboarding flag.
+  // Re-read the onboarding flag whenever the user or top-level route changes.
+  // This ensures that after finishing onboarding and navigating to (tabs),
+  // the guard picks up the freshly-written flag rather than the stale false value.
   useEffect(() => {
     if (!user) {
       setOnboardingChecked(false);
       setOnboardingDone(false);
       return;
     }
+    setOnboardingChecked(false); // mark as pending while we re-read
     getJSON<boolean>(`gryphongrid_onboarded_${user.uid}`, false).then((done) => {
       setOnboardingDone(done);
       setOnboardingChecked(true);
     });
-  }, [user?.uid]);
+  }, [user?.uid, segments[0]]);
 
   useEffect(() => {
     if (loading) return;

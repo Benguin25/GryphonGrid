@@ -388,10 +388,9 @@ function Step5({ p, set }: StepProps) {
 }
 
 // ── Step heading component ────────────────────────────────────────────────────
-function StepHeading({ step, title, subtitle }: { step: number; title: string; subtitle: string }) {
+function StepHeading({ title, subtitle }: { step: number; title: string; subtitle: string }) {
   return (
     <View style={styles.stepHeading}>
-      <Text style={styles.stepNumber}>Step {step} of {TOTAL_STEPS}</Text>
       <Text style={styles.stepTitle}>{title}</Text>
       <Text style={styles.stepSubtitle}>{subtitle}</Text>
     </View>
@@ -425,7 +424,7 @@ const DEFAULTS: Omit<Profile, "id" | "firstName"> = {
 
 // ── Main onboarding screen ────────────────────────────────────────────────────
 export default function OnboardingScreen() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -484,44 +483,56 @@ export default function OnboardingScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: "#f5f5f7" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* Progress bar */}
-      <View style={styles.progressBg}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
-
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {STEPS[step]}
+        {/* Logo header */}
+        <View style={styles.header}>
+          <Text style={styles.logo}>🦅 GryphonGrid</Text>
+          <Text style={styles.tagline}>Set up your profile</Text>
+        </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {/* Progress bar */}
+        <View style={styles.progressBg}>
+          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        </View>
+        <Text style={styles.progressLabel}>Step {step + 1} of {TOTAL_STEPS}</Text>
 
-        {/* Navigation buttons */}
-        <View style={styles.navRow}>
-          {step > 0 ? (
-            <Pressable style={styles.btnBack} onPress={() => { setError(""); setStep((s) => s - 1); }}>
-              <Text style={styles.btnBackText}>← Back</Text>
-            </Pressable>
-          ) : (
-            <View />
-          )}
+        {/* Card */}
+        <View style={styles.card}>
+          {STEPS[step]}
 
-          <Pressable
-            style={[styles.btnNext, saving && styles.btnDisabled]}
-            onPress={isLast ? handleFinish : handleNext}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {/* Navigation buttons */}
+          <View style={styles.navRow}>
+            {step > 0 ? (
+              <Pressable style={styles.btnBack} onPress={() => { setError(""); setStep((s) => s - 1); }}>
+                <Text style={styles.btnBackText}>← Back</Text>
+              </Pressable>
             ) : (
-              <Text style={styles.btnNextText}>{isLast ? "Finish 🎉" : "Next →"}</Text>
+              <Pressable style={styles.btnBack} onPress={signOut}>
+                <Text style={styles.btnBackText}>← Sign out</Text>
+              </Pressable>
             )}
-          </Pressable>
+
+            <Pressable
+              style={[styles.btnNext, saving && styles.btnDisabled]}
+              onPress={isLast ? handleFinish : handleNext}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.btnNextText}>{isLast ? "Finish 🎉" : "Next →"}</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -530,25 +541,60 @@ export default function OnboardingScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  progressBg: {
-    height: 4,
-    backgroundColor: "#e5e7eb",
-    marginTop: Platform.OS === "ios" ? 54 : 28,
-  },
-  progressFill: {
-    height: 4,
-    backgroundColor: PURPLE,
-    borderRadius: 2,
-  },
-  content: {
+  container: {
+    flexGrow: 1,
+    backgroundColor: "#f5f5f7",
     padding: 24,
+    paddingTop: Platform.OS === "ios" ? 60 : 36,
     paddingBottom: 48,
   },
+  header: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  logo: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: PURPLE,
+  },
+  tagline: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  progressBg: {
+    height: 6,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 3,
+    marginBottom: 6,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 6,
+    backgroundColor: PURPLE,
+    borderRadius: 3,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: "#9ca3af",
+    textAlign: "right",
+    marginBottom: 16,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
+  },
   stepHeading: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   stepNumber: {
-    fontSize: 12,
+    fontSize: 11,
     color: PURPLE,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -556,8 +602,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepTitle: {
-    fontSize: 26,
-    fontWeight: "800",
+    fontSize: 22,
+    fontWeight: "700",
     color: "#111827",
     marginBottom: 4,
   },
