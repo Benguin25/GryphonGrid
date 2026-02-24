@@ -22,8 +22,7 @@ import {
   SocialEnergy,
   PetAllergy,
 } from "../lib/types";
-
-const STORAGE_KEY = "gryphongrid_my_profile";
+import { useAuth } from "../context/AuthContext";
 
 const DEFAULT_PROFILE: Profile = {
   id: "me",
@@ -135,14 +134,18 @@ function SectionHeader({ number, title, subtitle }: { number: string; title: str
 
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function EditProfileScreen() {
-  const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
+  const { user, signOut } = useAuth();
+  const storageKey = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
+  const defaultProfileForUser: Profile = { ...DEFAULT_PROFILE, id: user?.uid ?? "me" };
+
+  const [profile, setProfile] = useState<Profile>(defaultProfileForUser);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    getJSON<Profile>(STORAGE_KEY, DEFAULT_PROFILE).then((stored) => {
+    getJSON<Profile>(storageKey, defaultProfileForUser).then((stored) => {
       if (stored.firstName) setProfile(stored);
     });
-  }, []);
+  }, [storageKey]);
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
     setSaved(false);
@@ -150,13 +153,13 @@ export default function EditProfileScreen() {
   }
 
   async function handleSave() {
-    await setJSON(STORAGE_KEY, profile);
+    await setJSON(storageKey, { ...profile, id: user?.uid ?? "me" });
     setSaved(true);
     setTimeout(() => router.back(), 800);
   }
 
   async function handlePreview() {
-    await setJSON(STORAGE_KEY, profile);
+    await setJSON(storageKey, { ...profile, id: user?.uid ?? "me" });
     router.push("/profile/me");
   }
 
@@ -420,7 +423,15 @@ export default function EditProfileScreen() {
       <Pressable style={[styles.saveBtn, saved && styles.saveBtnDone]} onPress={handleSave}>
         <Text style={styles.saveBtnText}>{saved ? "✓ Saved!" : "Save Profile"}</Text>
       </Pressable>
-    </ScrollView>
+      {/* ── Account ──────────────────────────────────────────────── */}
+      <View style={styles.accountSection}>
+        {user?.email ? (
+          <Text style={styles.accountEmail}>Signed in as {user.email}</Text>
+        ) : null}
+        <Pressable style={styles.signOutBtn} onPress={() => signOut()}>
+          <Text style={styles.signOutBtnText}>Sign out</Text>
+        </Pressable>
+      </View>    </ScrollView>
   );
 }
 
@@ -531,4 +542,30 @@ const styles = StyleSheet.create({
   },
   saveBtnDone: { backgroundColor: "#16a34a" },
   saveBtnText: { textAlign: "center", fontSize: 16, fontWeight: "700", color: "#fff" },
+
+  accountSection: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+    alignItems: "center",
+    gap: 12,
+  },
+  accountEmail: {
+    fontSize: 13,
+    color: "#6b7280",
+  },
+  signOutBtn: {
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    borderRadius: 999,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+    backgroundColor: "#fff",
+  },
+  signOutBtnText: {
+    color: "#dc2626",
+    fontWeight: "600",
+    fontSize: 14,
+  },
 });

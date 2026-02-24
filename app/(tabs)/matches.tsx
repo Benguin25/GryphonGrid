@@ -1,15 +1,16 @@
 import { View, Text, Image, Pressable, FlatList, StyleSheet } from "react-native";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MOCK_PROFILES, computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
 import { router } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
+import { getJSON } from "../../lib/storage";
 
-// Placeholder "me" — will eventually come from saved profile in AsyncStorage
-const ME: Profile = {
+const FALLBACK_PROFILE: Profile = {
   id: "me",
   firstName: "You",
   program: "Student",
-  bio: "My profile",
+  bio: "",
   sleepSchedule: "normal",
   cleanliness: 3,
   prefCleanliness: 3,
@@ -33,12 +34,23 @@ function matchColor(score: number) {
 }
 
 export default function MatchesScreen() {
+  const { user } = useAuth();
+  const [me, setMe] = useState<Profile>(FALLBACK_PROFILE);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `gryphongrid_profile_${user.uid}`;
+    getJSON<Profile>(key, FALLBACK_PROFILE).then((stored) => {
+      setMe({ ...FALLBACK_PROFILE, ...stored, id: user.uid });
+    });
+  }, [user]);
+
   const matches = useMemo(() => {
     return MOCK_PROFILES.map((p) => ({
       profile: p,
-      score: computeMatch(ME, p),
+      score: computeMatch(me, p),
     })).sort((a, b) => b.score - a.score);
-  }, []);
+  }, [me]);
 
   return (
     <View style={styles.container}>
