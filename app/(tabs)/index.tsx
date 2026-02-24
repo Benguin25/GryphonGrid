@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TextInput,
   Switch,
-  ScrollView,
   Platform,
   UIManager,
 } from "react-native";
@@ -170,72 +169,80 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      {/* Inline filter bar */}
-      <View style={styles.filterBar}>
-        {/* Age range */}
-        <Text style={styles.filterLabel}>Age</Text>
-        <TextInput
-          style={styles.ageInput}
-          placeholder="Min"
-          placeholderTextColor="#9ca3af"
-          value={ageMin}
-          onChangeText={setAgeMin}
-          keyboardType="numeric"
-          maxLength={2}
-        />
-        <Text style={styles.ageSep}>–</Text>
-        <TextInput
-          style={styles.ageInput}
-          placeholder="Max"
-          placeholderTextColor="#9ca3af"
-          value={ageMax}
-          onChangeText={setAgeMax}
-          keyboardType="numeric"
-          maxLength={2}
-        />
+      {/* Filter panel */}
+      <View style={styles.filterPanel}>
+        {/* Row 1: Age + Lease */}
+        <View style={styles.filterRow}>
+          <View style={styles.filterGroup}>
+            <Text style={styles.filterLabel}>Age</Text>
+            <View style={styles.ageRow}>
+              <TextInput
+                style={styles.ageInput}
+                placeholder="Min"
+                placeholderTextColor="#9ca3af"
+                value={ageMin}
+                onChangeText={setAgeMin}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <Text style={styles.ageSep}>–</Text>
+              <TextInput
+                style={styles.ageInput}
+                placeholder="Max"
+                placeholderTextColor="#9ca3af"
+                value={ageMax}
+                onChangeText={setAgeMax}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+          </View>
 
-        <View style={styles.divider} />
+          <View style={styles.filterDivider} />
 
-        {/* Lease chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-          {LEASE_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              style={[styles.chip, leaseFilter === opt.value && styles.chipActive]}
-              onPress={() => setLeaseFilter(opt.value)}
-            >
-              <Text style={[styles.chipText, leaseFilter === opt.value && styles.chipTextActive]}>{opt.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
+          <View style={[styles.filterGroup, { flex: 1 }]}>
+            <Text style={styles.filterLabel}>Lease</Text>
+            <View style={styles.chipWrap}>
+              {LEASE_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.chip, leaseFilter === opt.value && styles.chipActive]}
+                  onPress={() => setLeaseFilter(opt.value)}
+                >
+                  <Text style={[styles.chipText, leaseFilter === opt.value && styles.chipTextActive]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
 
-      {/* Sort + compatibility row */}
-      <View style={styles.controlRow}>
-        {/* Sort by chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortRow}>
-          <Text style={styles.sortLabel}>Sort:</Text>
-          {SORT_OPTIONS.map((opt) => (
-            <Pressable
-              key={opt.value}
-              style={[styles.sortChip, sortBy === opt.value && styles.sortChipActive]}
-              onPress={() => setSortBy(opt.value)}
-            >
-              <Text style={[styles.sortChipText, sortBy === opt.value && styles.sortChipTextActive]}>{opt.label}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        {/* Row 2: Sort + Match toggle */}
+        <View style={styles.filterRow}>
+          <View style={[styles.filterGroup, { flex: 1 }]}>
+            <Text style={styles.filterLabel}>Sort by</Text>
+            <View style={styles.chipWrap}>
+              {SORT_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.chip, sortBy === opt.value && styles.sortChipActive]}
+                  onPress={() => setSortBy(opt.value)}
+                >
+                  <Text style={[styles.chipText, sortBy === opt.value && styles.sortChipTextActive]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
 
-        {/* Compatibility toggle */}
-        <View style={styles.compatToggle}>
-          <Text style={styles.compatLabel}>Match %</Text>
-          <Switch
-            value={showScore}
-            onValueChange={setShowScore}
-            trackColor={{ false: "#e5e7eb", true: PURPLE }}
-            thumbColor="#fff"
-            style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
-          />
+          <View style={styles.compatToggle}>
+            <Text style={styles.compatLabel}>Show Match %</Text>
+            <Switch
+              value={showScore}
+              onValueChange={setShowScore}
+              trackColor={{ false: "#e5e7eb", true: PURPLE }}
+              thumbColor="#fff"
+              style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+            />
+          </View>
         </View>
       </View>
 
@@ -286,18 +293,36 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 14, color: "#111827", padding: 0 },
   clearBtn: { fontSize: 13, color: "#9ca3af", paddingHorizontal: 2 },
 
-  // Filter bar
-  filterBar: {
+  // Filter panel
+  filterPanel: {
+    marginHorizontal: 16,
+    marginBottom: 6,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    padding: 12,
+    gap: 12,
+  },
+  filterRow: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  filterGroup: {
     gap: 6,
   },
   filterLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#6b7280",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  ageRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   ageInput: {
     width: 44,
@@ -308,61 +333,40 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 13,
     color: "#111827",
-    backgroundColor: "#fff",
+    backgroundColor: "#f9fafb",
     textAlign: "center",
   },
   ageSep: { fontSize: 13, color: "#9ca3af" },
-  divider: {
+  filterDivider: {
     width: 1,
-    height: 20,
     backgroundColor: "#e5e7eb",
-    marginHorizontal: 4,
+    alignSelf: "stretch",
+    marginTop: 18,
   },
-  chipRow: { flexDirection: "row", gap: 6, alignItems: "center" },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   chip: {
     borderWidth: 1,
     borderColor: "#d1d5db",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    backgroundColor: "#fff",
+    backgroundColor: "#f9fafb",
   },
   chipActive: { backgroundColor: PURPLE, borderColor: PURPLE },
   chipText: { fontSize: 12, color: "#374151", fontWeight: "500" },
   chipTextActive: { color: "#fff" },
-
-  // Sort + compat row
-  controlRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 6,
-    gap: 8,
-  },
-  sortRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  sortLabel: { fontSize: 12, fontWeight: "700", color: "#6b7280", marginRight: 2 },
-  sortChip: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    backgroundColor: "#fff",
-  },
   sortChipActive: { backgroundColor: "#f0edff", borderColor: PURPLE },
-  sortChipText: { fontSize: 12, color: "#6b7280", fontWeight: "500" },
   sortChipTextActive: { color: PURPLE, fontWeight: "700" },
   compatToggle: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     marginLeft: "auto" as any,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    marginTop: 16,
   },
   compatLabel: { fontSize: 12, color: "#6b7280", fontWeight: "600" },
 
