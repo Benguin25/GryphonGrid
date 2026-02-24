@@ -7,8 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect } from "react";
-import { router } from "expo-router";
+import { useState, useCallback } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { getJSON } from "../../lib/storage";
@@ -89,11 +89,13 @@ export default function MyProfileTab() {
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
-  useEffect(() => {
-    if (!user) return;
-    const key = `gryphongrid_profile_${user.uid}`;
-    getJSON<Profile | null>(key, null).then(setProfile);
-  }, [user?.uid]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      const key = `gryphongrid_profile_${user.uid}`;
+      getJSON<Profile | null>(key, null).then(setProfile);
+    }, [user?.uid])
+  );
 
   if (profile === undefined) {
     return (

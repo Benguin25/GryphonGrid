@@ -1,6 +1,6 @@
 import { View, Text, Image, ScrollView, Pressable, StyleSheet, ActivityIndicator } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
-import { useState, useEffect } from "react";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
+import { useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MOCK_PROFILES } from "../../lib/mock";
 import { getJSON } from "../../lib/storage";
@@ -87,14 +87,16 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
-  useEffect(() => {
-    if (id === "me") {
-      const key = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
-      getJSON<Profile | null>(key, null).then(setProfile);
-    } else {
-      setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
-    }
-  }, [id, user?.uid]);
+  useFocusEffect(
+    useCallback(() => {
+      if (id === "me") {
+        const key = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
+        getJSON<Profile | null>(key, null).then(setProfile);
+      } else {
+        setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
+      }
+    }, [id, user?.uid])
+  );
 
   const isPreview = id === "me";
   const insets = useSafeAreaInsets();
