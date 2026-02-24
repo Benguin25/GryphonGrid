@@ -1,7 +1,6 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -33,20 +32,6 @@ export default function TabLayout() {
         options={{
           title: "Discover",
           tabBarIcon: ({ color }) => <TabBarIcon name="search" color={color} />,
-          headerRight: () => (
-            <Link href="/edit-profile" asChild>
-              <Pressable style={{ marginRight: 16 }}>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="user-circle"
-                    size={26}
-                    color="#7c3aed"
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
         }}
       />
       <Tabs.Screen
@@ -59,7 +44,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          href: null, // hide this tab
+          title: "My Profile",
+          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
       />
     </Tabs>

@@ -447,35 +447,24 @@ export default function EditProfileScreen() {
         onSelect={(v) => set("sleepSchedule", v)}
       />
 
-      <ScalePicker
-        label="Your cleanliness level"
-        value={profile.cleanliness}
-        onChange={(v) => set("cleanliness", v as Cleanliness)}
-        lowLabel="1 – Lived-in"
-        highLabel="5 – Very neat"
-      />
-      <ScalePicker
-        label="Preferred roommate cleanliness"
-        value={profile.prefCleanliness}
-        onChange={(v) => set("prefCleanliness", v as Cleanliness)}
-        lowLabel="1"
-        highLabel="5"
-      />
-
-      <ScalePicker
-        label="Your social energy"
-        value={profile.socialEnergy}
-        onChange={(v) => set("socialEnergy", v as SocialEnergy)}
-        lowLabel="1 – Very quiet"
-        highLabel="5 – Very social"
-      />
-      <ScalePicker
-        label="Preferred roommate social energy"
-        value={profile.prefSocialEnergy}
-        onChange={(v) => set("prefSocialEnergy", v as SocialEnergy)}
-        lowLabel="1"
-        highLabel="5"
-      />
+      <View style={styles.quizNotice}>
+        <Text style={styles.quizNoticeTitle}>🧹 Cleanliness · 🤝 Social energy</Text>
+        <Text style={styles.quizNoticeBody}>
+          These scores are calculated from your onboarding quiz and cannot be edited here.
+          Re-do onboarding if you want to update them.
+        </Text>
+        <View style={styles.quizScores}>
+          <View style={styles.quizScore}>
+            <Text style={styles.quizScoreNum}>{profile.cleanliness}/5</Text>
+            <Text style={styles.quizScoreLabel}>Cleanliness</Text>
+          </View>
+          <View style={styles.quizScoreDivider} />
+          <View style={styles.quizScore}>
+            <Text style={styles.quizScoreNum}>{profile.socialEnergy}/5</Text>
+            <Text style={styles.quizScoreLabel}>Social energy</Text>
+          </View>
+        </View>
+      </View>
 
       <OptionPicker<GuestFrequency>
         label="Guests frequency (your habit)"
@@ -486,16 +475,6 @@ export default function EditProfileScreen() {
           { value: "frequently", label: "Frequently" },
         ]}
         onSelect={(v) => set("guestsFrequency", v)}
-      />
-      <OptionPicker<GuestFrequency>
-        label="Preferred roommate guests"
-        value={profile.prefGuestsFrequency}
-        options={[
-          { value: "rarely", label: "Rarely" },
-          { value: "occasionally", label: "Occasionally" },
-          { value: "frequently", label: "Frequently" },
-        ]}
-        onSelect={(v) => set("prefGuestsFrequency", v)}
       />
 
       <OptionPicker<SubstanceEnv>
@@ -682,6 +661,28 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
   chipText: { fontSize: 13, color: "#374151" },
   chipTextActive: { color: "#fff", fontWeight: "600" },
+
+  quizNotice: {
+    backgroundColor: "#f0edff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ddd6fe",
+    padding: 14,
+    marginBottom: 16,
+    gap: 6,
+  },
+  quizNoticeTitle: { fontSize: 14, fontWeight: "700", color: "#7c3aed" },
+  quizNoticeBody: { fontSize: 12, color: "#6b7280", lineHeight: 17 },
+  quizScores: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    gap: 12,
+  },
+  quizScore: { alignItems: "center", gap: 2 },
+  quizScoreNum: { fontSize: 20, fontWeight: "800", color: "#7c3aed" },
+  quizScoreLabel: { fontSize: 11, color: "#9ca3af" },
+  quizScoreDivider: { width: 1, height: 32, backgroundColor: "#ddd6fe" },
 
   scaleRow: { flexDirection: "row", gap: 10, alignItems: "center" },
   scaleDot: {

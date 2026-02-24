@@ -5,8 +5,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MOCK_PROFILES } from "../../lib/mock";
 import { getJSON } from "../../lib/storage";
 import { Profile } from "../../lib/types";
+import { useAuth } from "../../context/AuthContext";
 
-const STORAGE_KEY = "gryphongrid_my_profile";
+const PURPLE = "#7c3aed";
 
 const SLEEP_LABELS: Record<string, string> = {
   early: "🌅 Early riser",
@@ -43,11 +44,31 @@ const LEASE_LABELS: Record<string, string> = {
   "indefinite": "Indefinite",
 };
 
+const GENDER_LABELS: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+  "non-binary": "Non-binary",
+  "prefer-not-to-say": "Prefer not to say",
+};
+
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue}>{value}</Text>
+    </View>
+  );
+}
+
+function ScaleRow({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.dots}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <View key={n} style={[styles.dot, value >= n && styles.dotFilled]} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -63,15 +84,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [profile, setProfile] = useState<Profile | null | undefined>(undefined); // undefined = loading
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
   useEffect(() => {
     if (id === "me") {
-      getJSON<Profile | null>(STORAGE_KEY, null).then(setProfile);
+      const key = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
+      getJSON<Profile | null>(key, null).then(setProfile);
     } else {
       setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
     }
-  }, [id]);
+  }, [id, user?.uid]);
 
   const isPreview = id === "me";
   const insets = useSafeAreaInsets();
@@ -93,13 +116,15 @@ export default function ProfileScreen() {
   }
 
   const petInfo = [
-    profile.hasDog && "Has dog",
-    profile.hasCat && "Has cat",
-    profile.petAllergy !== "none" && `Allergic to ${profile.petAllergy}`,
-    `Open to pets: ${profile.openToPets ? "Yes" : "No"}`,
+    profile.hasDog && "🐶 Has dog",
+    profile.hasCat && "🐱 Has cat",
+    !profile.hasDog && !profile.hasCat && "No pets",
   ]
     .filter(Boolean)
     .join(" · ");
+
+  const petAllergy =
+    profile.petAllergy === "none" ? "None" : `Allergic to ${profile.petAllergy}`;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}>
@@ -123,25 +148,37 @@ export default function ProfileScreen() {
       <Text style={styles.name}>
         {profile.firstName}{profile.age ? `, ${profile.age}` : ""}
       </Text>
-      {profile.gender && <Text style={styles.subtext}>{profile.gender}</Text>}
+      {profile.gender && (
+        <Text style={styles.subtext}>{GENDER_LABELS[profile.gender] ?? profile.gender}</Text>
+      )}
       <Text style={styles.program}>{profile.program}</Text>
-      <Text style={styles.bio}>{profile.bio}</Text>
+      {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
-      {/* Section 2: Lifestyle */}
+      {/* Lifestyle */}
       <Section title="Lifestyle">
         <InfoRow label="Sleep schedule" value={SLEEP_LABELS[profile.sleepSchedule]} />
-        <InfoRow label="Cleanliness" value={`${profile.cleanliness} / 5`} />
-        <InfoRow label="Social energy" value={`${profile.socialEnergy} / 5`} />
-        <InfoRow label="Guests" value={GUESTS_LABELS[profile.guestsFrequency]} />
-        <InfoRow label="Substance env" value={SUBSTANCE_LABELS[profile.substanceEnv]} />
-        <InfoRow label="Pets" value={petInfo || "No pets"} />
+        <InfoRow label="Substance environment" value={SUBSTANCE_LABELS[profile.substanceEnv]} />
         <InfoRow label="Noise tolerance" value={NOISE_LABELS[profile.noiseTolerance]} />
+        <InfoRow label="Has guests" value={GUESTS_LABELS[profile.guestsFrequency]} />
       </Section>
 
-      {/* Section 3: Living Intent */}
+      {/* My levels */}
+      <Section title="My levels">
+        <ScaleRow label="Cleanliness" value={profile.cleanliness} />
+        <ScaleRow label="Social energy" value={profile.socialEnergy} />
+      </Section>
+
+      {/* Pets */}
+      <Section title="Pets">
+        <InfoRow label="My pets" value={petInfo} />
+        <InfoRow label="Pet allergies" value={petAllergy} />
+        <InfoRow label="Open to living with pets" value={profile.openToPets ? "Yes" : "No"} />
+      </Section>
+
+      {/* Living intent */}
       <Section title="Living Intent">
-        <InfoRow label="Looking for" value={LEASE_LABELS[profile.leaseDuration]} />
-        {profile.moveInDate && (
+        <InfoRow label="Lease duration" value={LEASE_LABELS[profile.leaseDuration]} />
+        {!!profile.moveInDate && (
           <InfoRow label="Move-in date" value={profile.moveInDate} />
         )}
         {(profile.budgetMin || profile.budgetMax) && (
@@ -172,11 +209,11 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: "center", justifyContent: "center" },
   notFound: { color: "#6b7280" },
   backBtn: { marginBottom: 16 },
-  backText: { color: "#7c3aed", fontSize: 16, fontWeight: "500" },
+  backText: { color: PURPLE, fontSize: 16, fontWeight: "500" },
   photo: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: "#e5e7eb",
     marginBottom: 12,
     alignSelf: "center",
@@ -191,12 +228,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#9ca3af",
     textAlign: "center",
-    textTransform: "capitalize",
     marginTop: 2,
   },
   program: {
     fontSize: 15,
-    color: "#7c3aed",
+    color: PURPLE,
     fontWeight: "600",
     textAlign: "center",
     marginTop: 4,
@@ -210,7 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   section: {
-    marginTop: 20,
+    marginTop: 16,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#e5e7eb",
@@ -218,10 +254,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "700",
-    color: "#111",
-    marginBottom: 4,
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   row: {
     flexDirection: "row",
@@ -230,9 +268,17 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontSize: 13, color: "#6b7280" },
   rowValue: { fontSize: 13, color: "#111", fontWeight: "500", maxWidth: "55%", textAlign: "right" },
+  dots: { flexDirection: "row", gap: 5 },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#e5e7eb",
+  },
+  dotFilled: { backgroundColor: PURPLE },
   requestBtn: {
     marginTop: 28,
-    backgroundColor: "#7c3aed",
+    backgroundColor: PURPLE,
     borderRadius: 999,
     paddingVertical: 16,
   },
@@ -251,7 +297,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   previewBannerText: {
-    color: "#7c3aed",
+    color: PURPLE,
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
