@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
   UIManager,
+  RefreshControl,
 } from "react-native";
 import { useState, useMemo, useEffect } from "react";
 import { computeMatch } from "../../lib/mock";
@@ -225,6 +226,7 @@ export default function DiscoverScreen() {
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -233,12 +235,23 @@ export default function DiscoverScreen() {
     );
   }, [user?.uid]);
 
-  useEffect(() => {
+  const fetchProfiles = (isRefresh = false) => {
     if (!user) return;
-    setLoadingProfiles(true);
-    loadAllProfiles(user.uid)
-      .then(setProfiles)
-      .finally(() => setLoadingProfiles(false));
+    if (isRefresh) setRefreshing(true); else setLoadingProfiles(true);
+    Promise.all([
+      loadProfile(user.uid),
+      loadAllProfiles(user.uid),
+    ]).then(([p, allProfiles]) => {
+      if (p) setMe({ ...FALLBACK_ME, ...p, id: user.uid });
+      setProfiles(allProfiles);
+    }).finally(() => {
+      setLoadingProfiles(false);
+      setRefreshing(false);
+    });
+  };
+
+  useEffect(() => {
+    fetchProfiles();
   }, [user?.uid]);
 
   const [query, setQuery] = useState("");
@@ -374,6 +387,14 @@ export default function DiscoverScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={listHeader}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchProfiles(true)}
+            tintColor={PURPLE}
+            colors={[PURPLE]}
+          />
+        }
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         renderItem={({ item }) => (
           <ProfileCard item={item.profile} score={item.score} showScore={showScore} />

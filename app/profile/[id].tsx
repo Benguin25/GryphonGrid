@@ -85,10 +85,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { sendRequest, getRelationship } = useRequests();
+  const { sendRequest, getRelationship, respondRequest } = useRequests();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [relationship, setRelationship] = useState<RoommateRequest | null>(null);
   const [requesting, setRequesting] = useState(false);
+  const [responding, setResponding] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,6 +121,24 @@ export default function ProfileScreen() {
       Alert.alert("Error", e instanceof Error ? e.message : "Something went wrong.");
     } finally {
       setRequesting(false);
+    }
+  }
+
+  async function handleRespond(status: "accepted" | "declined") {
+    if (!relationship?.id) return;
+    setResponding(true);
+    try {
+      await respondRequest(relationship.id, status);
+      if (status === "accepted") {
+        setRelationship((r) => r ? { ...r, status: "accepted" } : r);
+      } else {
+        setRelationship(null);
+        router.back();
+      }
+    } catch (e) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setResponding(false);
     }
   }
 
@@ -239,11 +258,36 @@ export default function ProfileScreen() {
         }
         if (relationship?.status === "pending") {
           const isSender = relationship.fromUid === user?.uid;
+          if (isSender) {
+            return (
+              <View style={[styles.requestBtn, styles.pendingBtn]}>
+                <Text style={[styles.requestBtnText, { color: "#374151" }]}>⏳ Request Sent</Text>
+              </View>
+            );
+          }
+          // Current user is the receiver — show Accept / Decline
           return (
-            <View style={[styles.requestBtn, styles.pendingBtn]}>
-              <Text style={[styles.requestBtnText, { color: "#374151" }]}>
-                {isSender ? "⏳ Request Sent" : "⏳ They want to match with you!"}
-              </Text>
+            <View style={styles.respondRow}>
+              <Pressable
+                style={[styles.respondBtn, styles.declineBtn, responding && styles.btnDisabled]}
+                onPress={() => handleRespond("declined")}
+                disabled={responding}
+              >
+                {responding
+                  ? <ActivityIndicator color="#dc2626" />
+                  : <Text style={[styles.respondBtnText, { color: "#dc2626" }]}>✕ Decline</Text>
+                }
+              </Pressable>
+              <Pressable
+                style={[styles.respondBtn, styles.acceptBtn, responding && styles.btnDisabled]}
+                onPress={() => handleRespond("accepted")}
+                disabled={responding}
+              >
+                {responding
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={[styles.respondBtnText, { color: "#fff" }]}>✓ Accept</Text>
+                }
+              </Pressable>
             </View>
           );
         }
@@ -351,6 +395,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#fff",
+    letterSpacing: 0.3,
+  },
+  respondRow: {
+    marginTop: 28,
+    flexDirection: "row",
+    gap: 12,
+  },
+  respondBtn: {
+    flex: 1,
+    borderRadius: 999,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  acceptBtn: { backgroundColor: PURPLE },
+  declineBtn: { backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fca5a5" },
+  respondBtnText: {
+    fontSize: 16,
+    fontWeight: "700",
     letterSpacing: 0.3,
   },
   igBox: {

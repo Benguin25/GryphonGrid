@@ -32,6 +32,8 @@ type RequestContextType = {
   sendRequest: (toUid: string) => Promise<"sent" | "already_sent" | "already_matched">;
   /** Get the current request relationship between current user and another user. */
   getRelationship: (otherUid: string) => Promise<RoommateRequest | null>;
+  /** Accept or decline a pending request by its document ID. */
+  respondRequest: (requestId: string, status: "accepted" | "declined") => Promise<void>;
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -39,6 +41,7 @@ type RequestContextType = {
 const RequestContext = createContext<RequestContextType>({
   sendRequest: async () => "sent",
   getRelationship: async () => null,
+  respondRequest: async () => {},
 });
 
 export function useRequests() {
@@ -104,8 +107,17 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
     return getRequestBetween(user.uid, otherUid);
   }
 
+  async function respondRequest(requestId: string, status: "accepted" | "declined") {
+    await respondToRequest(requestId, status);
+    // If this was the popup request, dismiss it too
+    if (currentRequest?.id === requestId) {
+      seenIds.current.add(requestId);
+      setCurrentRequest(null);
+    }
+  }
+
   return (
-    <RequestContext.Provider value={{ sendRequest, getRelationship }}>
+    <RequestContext.Provider value={{ sendRequest, getRelationship, respondRequest }}>
       {children}
 
       {/* ── Incoming request popup ───────────────────────────────────────── */}

@@ -1,4 +1,4 @@
-import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl } from "react-native";
 import { useState, useEffect } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
@@ -29,22 +29,27 @@ export default function MatchesScreen() {
   const [accepted, setAccepted] = useState<Profile[]>([]);
   const [pending, setPending] = useState<{ profile: Profile; direction: "sent" | "received" }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const fetchData = (isRefresh = false) => {
     if (!user) return;
-    loadProfile(user.uid).then((p) => { if (p) setMe(p); });
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
+    if (isRefresh) setRefreshing(true); else setLoading(true);
     Promise.all([
+      loadProfile(user.uid),
       loadAcceptedMatches(user.uid),
       loadPendingRequests(user.uid),
-    ]).then(([acc, pend]) => {
+    ]).then(([p, acc, pend]) => {
+      if (p) setMe(p);
       setAccepted(acc);
       setPending(pend);
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      setLoading(false);
+      setRefreshing(false);
+    });
+  };
+
+  useEffect(() => {
+    fetchData();
   }, [user?.uid]);
 
   if (loading) {
@@ -79,6 +84,14 @@ export default function MatchesScreen() {
         showsVerticalScrollIndicator={false}
         stickySectionHeadersEnabled={false}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchData(true)}
+            tintColor={PURPLE}
+            colors={[PURPLE]}
+          />
+        }
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
