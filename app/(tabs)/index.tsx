@@ -146,8 +146,8 @@ export default function DiscoverScreen() {
     });
   }, [query, ageMin, ageMax, leaseFilter, sortBy, me]);
 
-  return (
-    <View style={styles.container}>
+  const listHeader = (
+    <>
       {/* Search bar */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
@@ -248,13 +248,18 @@ export default function DiscoverScreen() {
 
       {/* Result count */}
       <Text style={styles.resultCount}>{results.length} {results.length === 1 ? "person" : "people"} found</Text>
+    </>
+  );
 
+  return (
+    <View style={styles.container}>
       <FlatList
         data={results}
         keyExtractor={(x) => x.profile.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={listHeader}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         renderItem={({ item }) => (
           <ProfileCard item={item.profile} score={item.score} showScore={showScore} />

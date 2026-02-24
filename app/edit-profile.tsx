@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getJSON, setJSON } from "../lib/storage";
 import {
   Profile,
@@ -158,13 +159,15 @@ export default function EditProfileScreen() {
     setTimeout(() => router.back(), 800);
   }
 
+  const insets = useSafeAreaInsets();
+
   async function handlePreview() {
     await setJSON(storageKey, { ...profile, id: user?.uid ?? "me" });
     router.push("/profile/me");
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.topRow}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>← Back</Text>
