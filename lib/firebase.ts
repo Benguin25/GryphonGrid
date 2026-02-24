@@ -22,6 +22,7 @@
 
 import { initializeApp, getApps } from "firebase/app";
 import { initializeAuth, getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Loaded from .env.local (never commit that file) ──────────────────────────
@@ -43,6 +44,9 @@ export const GOOGLE_WEB_CLIENT_ID     = "";   // always required for Firebase cr
 
 // ── Firebase init (guard against hot-reload double-init) ─────────────────────
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+// ── Firestore database ────────────────────────────────────────────────────────
+export const db = getFirestore(app);
 
 /**
  * Custom AsyncStorage persistence so users stay logged-in across app restarts.

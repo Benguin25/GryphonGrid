@@ -4,7 +4,7 @@ import { MOCK_PROFILES, computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { getJSON } from "../../lib/storage";
+import { loadProfile } from "../../lib/db";
 
 const FALLBACK_PROFILE: Profile = {
   id: "me",
@@ -39,9 +39,8 @@ export default function MatchesScreen() {
 
   useEffect(() => {
     if (!user) return;
-    const key = `gryphongrid_profile_${user.uid}`;
-    getJSON<Profile>(key, FALLBACK_PROFILE).then((stored) => {
-      setMe({ ...FALLBACK_PROFILE, ...stored, id: user.uid });
+    loadProfile(user.uid).then((stored) => {
+      setMe({ ...FALLBACK_PROFILE, ...(stored ?? {}), id: user.uid });
     });
   }, [user]);
 

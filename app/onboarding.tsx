@@ -18,7 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
-import { setJSON } from "../lib/storage";
+import { saveProfile, saveOnboarded } from "../lib/db";
 import {
   Profile,
   SleepSchedule,
@@ -777,8 +777,8 @@ export default function OnboardingScreen() {
         guestsFrequency:  guestsFrom(socialAnswers[1]),
         prefGuestsFrequency: guestsFrom(socialAnswers[1]),
       };
-      await setJSON(`gryphongrid_profile_${uid}`, finalProfile);
-      await setJSON(`gryphongrid_onboarded_${uid}`, true);
+      await saveProfile(uid, finalProfile);
+      await saveOnboarded(uid);
       router.replace("/(tabs)");
     } catch {
       setError("Something went wrong. Please try again.");

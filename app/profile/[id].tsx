@@ -3,7 +3,7 @@ import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MOCK_PROFILES } from "../../lib/mock";
-import { getJSON } from "../../lib/storage";
+import { loadProfile } from "../../lib/db";
 import { Profile } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
 
@@ -90,8 +90,7 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (id === "me") {
-        const key = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
-        getJSON<Profile | null>(key, null).then(setProfile);
+        loadProfile(user?.uid ?? "").then(setProfile);
       } else {
         setProfile(MOCK_PROFILES.find((p) => p.id === id) ?? null);
       }

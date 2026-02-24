@@ -15,7 +15,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getJSON, setJSON } from "../lib/storage";
+import { loadProfile, saveProfile } from "../lib/db";
 import {
   Profile,
   SleepSchedule,
@@ -322,17 +322,17 @@ function SectionHeader({ number, title, subtitle }: { number: string; title: str
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function EditProfileScreen() {
   const { user, signOut } = useAuth();
-  const storageKey = `gryphongrid_profile_${user?.uid ?? "anonymous"}`;
   const defaultProfileForUser: Profile = { ...DEFAULT_PROFILE, id: user?.uid ?? "me" };
 
   const [profile, setProfile] = useState<Profile>(defaultProfileForUser);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    getJSON<Profile>(storageKey, defaultProfileForUser).then((stored) => {
-      if (stored.firstName) setProfile(stored);
+    if (!user?.uid) return;
+    loadProfile(user.uid).then((stored) => {
+      if (stored?.firstName) setProfile(stored);
     });
-  }, [storageKey]);
+  }, [user?.uid]);
 
   function set<K extends keyof Profile>(key: K, value: Profile[K]) {
     setSaved(false);
@@ -340,7 +340,7 @@ export default function EditProfileScreen() {
   }
 
   async function handleSave() {
-    await setJSON(storageKey, { ...profile, id: user?.uid ?? "me" });
+    await saveProfile(user?.uid ?? "me", { ...profile, id: user?.uid ?? "me" });
     setSaved(true);
     setTimeout(() => router.back(), 800);
   }
@@ -348,7 +348,7 @@ export default function EditProfileScreen() {
   const insets = useSafeAreaInsets();
 
   async function handlePreview() {
-    await setJSON(storageKey, { ...profile, id: user?.uid ?? "me" });
+    await saveProfile(user?.uid ?? "me", { ...profile, id: user?.uid ?? "me" });
     router.push("/profile/me");
   }
 

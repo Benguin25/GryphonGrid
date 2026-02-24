@@ -8,7 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { getJSON } from '../lib/storage';
+import { loadOnboarded } from '../lib/db';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -69,7 +69,7 @@ function AuthGuard() {
       return;
     }
     setOnboardingChecked(false); // mark as pending while we re-read
-    getJSON<boolean>(`gryphongrid_onboarded_${user.uid}`, false).then((done) => {
+    loadOnboarded(user.uid).then((done) => {
       setOnboardingDone(done);
       setOnboardingChecked(true);
     });

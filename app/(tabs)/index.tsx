@@ -16,7 +16,7 @@ import { MOCK_PROFILES, computeMatch } from "../../lib/mock";
 import { Profile, LeaseDuration } from "../../lib/types";
 import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { getJSON } from "../../lib/storage";
+import { loadProfile } from "../../lib/db";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -226,8 +226,8 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     if (!user) return;
-    getJSON<Profile>(`gryphongrid_profile_${user.uid}`, FALLBACK_ME).then((p) =>
-      setMe({ ...FALLBACK_ME, ...p, id: user.uid })
+    loadProfile(user.uid).then((p) =>
+      setMe({ ...FALLBACK_ME, ...(p ?? {}), id: user.uid })
     );
   }, [user?.uid]);
 

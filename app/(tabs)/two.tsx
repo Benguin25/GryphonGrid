@@ -11,7 +11,7 @@ import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
-import { getJSON } from "../../lib/storage";
+import { loadProfile } from "../../lib/db";
 import { Profile } from "../../lib/types";
 
 const PURPLE = "#7c3aed";
@@ -92,8 +92,7 @@ export default function MyProfileTab() {
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
-      const key = `gryphongrid_profile_${user.uid}`;
-      getJSON<Profile | null>(key, null).then(setProfile);
+      loadProfile(user.uid).then(setProfile);
     }, [user?.uid])
   );
 
