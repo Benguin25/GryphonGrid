@@ -53,27 +53,25 @@ export default function RootLayout() {
 
 /** Redirect unauthenticated users to login; redirect authenticated users through onboarding if needed. */
 function AuthGuard() {
-  const { user, loading } = useAuth();
+  const { user, loading, onboardingDone, markOnboardingDone } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
-  const [onboardingDone, setOnboardingDone] = useState(false);
 
-  // Re-read the onboarding flag whenever the user or top-level route changes.
-  // This ensures that after finishing onboarding and navigating to (tabs),
-  // the guard picks up the freshly-written flag rather than the stale false value.
+  // Load onboarding flag from Firestore once when the user signs in.
+  // onboarding.tsx calls markOnboardingDone() synchronously before navigating
+  // so there is no race condition on first completion.
   useEffect(() => {
     if (!user) {
       setOnboardingChecked(false);
-      setOnboardingDone(false);
       return;
     }
-    setOnboardingChecked(false); // mark as pending while we re-read
+    setOnboardingChecked(false);
     loadOnboarded(user.uid).then((done) => {
-      setOnboardingDone(done);
+      if (done) markOnboardingDone();
       setOnboardingChecked(true);
     });
-  }, [user?.uid]);
+  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (loading) return;

@@ -14,6 +14,8 @@ import { firebaseAuth } from "../lib/firebase";
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+  onboardingDone: boolean;
+  markOnboardingDone: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -24,6 +26,8 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  onboardingDone: false,
+  markOnboardingDone: () => {},
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
@@ -38,15 +42,22 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   // Listen to Firebase auth state
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      // Reset onboarding flag when user changes so AuthGuard re-reads from Firestore
+      if (!firebaseUser) setOnboardingDone(false);
     });
     return unsubscribe;
   }, []);
+
+  function markOnboardingDone() {
+    setOnboardingDone(true);
+  }
 
   // ── Auth actions ────────────────────────────────────────────────────────────
 
@@ -71,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signIn, signUp, signOut }}
+      value={{ user, loading, onboardingDone, markOnboardingDone, signIn, signUp, signOut }}
     >
       {children}
     </AuthContext.Provider>

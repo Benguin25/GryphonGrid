@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
+import type {} from "../context/AuthContext";
 import { saveProfile, saveOnboarded } from "../lib/db";
 import {
   Profile,
@@ -716,7 +717,7 @@ const DEFAULTS: Omit<Profile, "id" | "firstName"> = {
 
 // ── Main onboarding screen ────────────────────────────────────────────────────
 export default function OnboardingScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, markOnboardingDone } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -788,6 +789,7 @@ export default function OnboardingScreen() {
       console.log("[onboarding] profile saved, writing onboarded flag...");
       await saveOnboarded(uid);
       console.log("[onboarding] all writes done, navigating...");
+      markOnboardingDone();
       router.replace("/(tabs)");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
