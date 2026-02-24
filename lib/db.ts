@@ -16,7 +16,9 @@ import { Profile } from "./types";
 
 /** Persist the user's profile to Firestore (merges so other fields are kept). */
 export async function saveProfile(uid: string, profile: Profile): Promise<void> {
+  console.log("[db] saveProfile → uid:", uid, "projectId:", (db as any)._databaseId?.projectId);
   await setDoc(doc(db, "users", uid), profile, { merge: true });
+  console.log("[db] saveProfile ✓ done");
 }
 
 /**
@@ -36,7 +38,9 @@ export async function loadProfile(uid: string): Promise<Profile | null> {
 
 /** Write onboarded: true into the user's document. */
 export async function saveOnboarded(uid: string): Promise<void> {
+  console.log("[db] saveOnboarded → uid:", uid);
   await setDoc(doc(db, "users", uid), { onboarded: true }, { merge: true });
+  console.log("[db] saveOnboarded ✓ done");
 }
 
 /** Returns true if the user has previously completed onboarding. */

@@ -764,7 +764,13 @@ export default function OnboardingScreen() {
     setError("");
     setSaving(true);
     try {
-      const uid = user?.uid ?? "me";
+      const uid = user?.uid;
+      if (!uid) {
+        setError("Not logged in – please restart the app and sign in again.");
+        setSaving(false);
+        return;
+      }
+      console.log("[onboarding] saving profile for uid:", uid);
       const finalProfile: Profile = {
         ...profile,
         id: uid,
@@ -777,11 +783,17 @@ export default function OnboardingScreen() {
         guestsFrequency:  guestsFrom(socialAnswers[1]),
         prefGuestsFrequency: guestsFrom(socialAnswers[1]),
       };
+      console.log("[onboarding] writing profile...");
       await saveProfile(uid, finalProfile);
+      console.log("[onboarding] profile saved, writing onboarded flag...");
       await saveOnboarded(uid);
+      console.log("[onboarding] all writes done, navigating...");
       router.replace("/(tabs)");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(`Save failed: ${msg}`);
+      console.error("[onboarding] save error:", e);
+      Alert.alert("Firebase Error", msg);
     } finally {
       setSaving(false);
     }

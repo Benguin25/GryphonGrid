@@ -73,7 +73,7 @@ function AuthGuard() {
       setOnboardingDone(done);
       setOnboardingChecked(true);
     });
-  }, [user?.uid, segments[0]]);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (loading) return;
