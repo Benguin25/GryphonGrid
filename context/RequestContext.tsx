@@ -23,7 +23,7 @@ import {
 import { useAuth } from "./AuthContext";
 import { Profile } from "../lib/types";
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  photoInitial: { fontSize: 32, fontWeight: "800", color: PURPLE },
+  photoInitial: { fontSize: 32, fontWeight: "800", color: RED },
   name: { fontSize: 22, fontWeight: "700", color: "#111" },
   subtitle: { fontSize: 14, color: "#6b7280", marginTop: 4, marginBottom: 24 },
   buttons: { flexDirection: "row", gap: 12, width: "100%" },
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   declineBtn: { backgroundColor: "#f3f4f6", borderWidth: 1, borderColor: "#e5e7eb" },
-  acceptBtn:  { backgroundColor: PURPLE },
+  acceptBtn:  { backgroundColor: RED },
   declineText: { fontSize: 15, fontWeight: "600", color: "#374151" },
   acceptText:  { fontSize: 15, fontWeight: "700", color: "#fff" },
   laterBtn:  { marginTop: 14 },

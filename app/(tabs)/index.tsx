@@ -24,7 +24,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 const SLEEP_LABELS: Record<string, string> = {
   early: "🌅 Early riser",
@@ -191,10 +191,10 @@ const dropStyles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
   },
-  optionActive: { backgroundColor: "#f0edff" },
+  optionActive: { backgroundColor: "#FFF0F0" },
   optionText: { fontSize: 15, color: "#111827" },
-  optionTextActive: { color: PURPLE, fontWeight: "700" },
-  checkmark: { fontSize: 15, color: PURPLE, fontWeight: "700" },
+  optionTextActive: { color: RED, fontWeight: "700" },
+  checkmark: { fontSize: 15, color: RED, fontWeight: "700" },
 });
 
 const LEASE_OPTIONS: { value: LeaseDuration | "any"; label: string }[] = [
@@ -369,7 +369,7 @@ export default function DiscoverScreen() {
             <Switch
               value={showScore}
               onValueChange={setShowScore}
-              trackColor={{ false: "#e5e7eb", true: PURPLE }}
+              trackColor={{ false: "#e5e7eb", true: RED }}
               thumbColor="#fff"
               style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
             />
@@ -395,8 +395,8 @@ export default function DiscoverScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchProfiles(true)}
-            tintColor={PURPLE}
-            colors={[PURPLE]}
+            tintColor={RED}
+            colors={[RED]}
           />
         }
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -545,13 +545,13 @@ const styles = StyleSheet.create({
   },
   scoreBadgeText: { fontSize: 11, fontWeight: "700" },
   leaseBadge: {
-    backgroundColor: "#f0edff",
+    backgroundColor: "#FFF0F0",
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  leaseBadgeText: { fontSize: 11, color: PURPLE, fontWeight: "600" },
-  program: { fontSize: 13, color: PURPLE, fontWeight: "500" },
+  leaseBadgeText: { fontSize: 11, color: RED, fontWeight: "600" },
+  program: { fontSize: 13, color: RED, fontWeight: "500" },
   bio: { fontSize: 13, color: "#6b7280", lineHeight: 18, marginTop: 2 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 },
   tag: { backgroundColor: "#f3f4f6", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },

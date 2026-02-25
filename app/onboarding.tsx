@@ -1,4 +1,4 @@
-﻿import {
+import {
   View,
   Text,
   TextInput,
@@ -31,13 +31,13 @@ import {
   SocialEnergy,
 } from "../lib/types";
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 const TOTAL_STEPS = 5;
 
 type StepProps = { p: Profile; set: <K extends keyof Profile>(key: K, val: Profile[K]) => void };
 type QuizAnswer = "A" | "B" | "C" | "D" | undefined;
 
-// ── Chip picker ───────────────────────────────────────────────────────────────
+// -- Chip picker ---------------------------------------------------------------
 function Chips<T extends string>({
   label, options, value, onSelect,
 }: {
@@ -66,17 +66,17 @@ function Chips<T extends string>({
   );
 }
 
-// ── Toggle row ────────────────────────────────────────────────────────────────
+// -- Toggle row ----------------------------------------------------------------
 function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <View style={styles.toggleRow}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: "#e5e7eb", true: PURPLE }} thumbColor="#fff" />
+      <Switch value={value} onValueChange={onChange} trackColor={{ false: "#e5e7eb", true: RED }} thumbColor="#fff" />
     </View>
   );
 }
 
-// ── Accordion quiz question ────────────────────────────────────────────────────
+// -- Accordion quiz question ----------------------------------------------------
 function AccordionQuestion({
   num, question, options, answer, open, onToggle, onSelect, onNext, isLast,
 }: {
@@ -98,10 +98,10 @@ function AccordionQuestion({
           <Text style={styles.accordionNum}>Question {num}</Text>
           <Text style={styles.accordionQ} numberOfLines={open ? undefined : 2}>{question}</Text>
           {!open && selected && (
-            <Text style={styles.accordionSelected}>✓ {selected.label}</Text>
+            <Text style={styles.accordionSelected}>? {selected.label}</Text>
           )}
         </View>
-        <Text style={styles.accordionChevron}>{open ? "▲" : "▼"}</Text>
+        <Text style={styles.accordionChevron}>{open ? "?" : "?"}</Text>
       </Pressable>
       {open && (
         <View style={styles.accordionBody}>
@@ -123,7 +123,7 @@ function AccordionQuestion({
           ))}
           {!!answer && onNext && (
             <Pressable style={styles.accordionNextBtn} onPress={onNext}>
-              <Text style={styles.accordionNextText}>{isLast ? "Done ✓" : "Next →"}</Text>
+              <Text style={styles.accordionNextText}>{isLast ? "Done ?" : "Next ?"}</Text>
             </Pressable>
           )}
         </View>
@@ -132,7 +132,7 @@ function AccordionQuestion({
   );
 }
 
-// ── Calendar date picker (pure React Native, no native modules) ───────────────
+// -- Calendar date picker (pure React Native, no native modules) ---------------
 const CAL_MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const CAL_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const CAL_DAYS         = ["Su","Mo","Tu","We","Th","Fr","Sa"];
@@ -177,7 +177,7 @@ function DatePickerField({
       <Text style={styles.fieldLabel}>{label}</Text>
       <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
         <Text style={[styles.dateBtnText, !value && styles.datePlaceholder]}>{displayValue}</Text>
-        <Text style={styles.dateIcon}>📅</Text>
+        <Text style={styles.dateIcon}>??</Text>
       </Pressable>
       <Modal visible={show} transparent animationType="slide">
         <View style={styles.dateModalBg}>
@@ -191,11 +191,11 @@ function DatePickerField({
             </View>
             <View style={calStyles.nav}>
               <Pressable onPress={prevMonth} style={calStyles.navBtn}>
-                <Text style={calStyles.navArrow}>‹</Text>
+                <Text style={calStyles.navArrow}>�</Text>
               </Pressable>
               <Text style={calStyles.navMonth}>{CAL_MONTHS[viewMonth]} {viewYear}</Text>
               <Pressable onPress={nextMonth} style={calStyles.navBtn}>
-                <Text style={calStyles.navArrow}>›</Text>
+                <Text style={calStyles.navArrow}>�</Text>
               </Pressable>
             </View>
             <View style={calStyles.weekRow}>
@@ -236,20 +236,20 @@ const calStyles = StyleSheet.create({
   cancel:           { fontSize: 15, color: "#6b7280", width: 60 },
   nav:              { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 10 },
   navBtn:           { padding: 10 },
-  navArrow:         { fontSize: 24, color: PURPLE, fontWeight: "700", lineHeight: 26 },
+  navArrow:         { fontSize: 24, color: RED, fontWeight: "700", lineHeight: 26 },
   navMonth:         { fontSize: 16, fontWeight: "700", color: "#111827" },
   weekRow:          { flexDirection: "row", paddingHorizontal: 8, marginBottom: 2 },
   weekDay:          { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#9ca3af", paddingVertical: 4 },
   grid:             { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8 },
   cell:             { width: "14.2857%", aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 100 },
-  cellSelected:     { backgroundColor: PURPLE },
-  cellToday:        { borderWidth: 1.5, borderColor: PURPLE },
+  cellSelected:     { backgroundColor: RED },
+  cellToday:        { borderWidth: 1.5, borderColor: RED },
   cellText:         { fontSize: 14, color: "#111827" },
   cellTextSelected: { color: "#fff", fontWeight: "700" },
   cellTextPast:     { color: "#d1d5db" },
 });
 
-// ── Step heading ──────────────────────────────────────────────────────────────
+// -- Step heading --------------------------------------------------------------
 function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <View style={styles.stepHeading}>
@@ -259,7 +259,7 @@ function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
-// ── Scoring helpers ───────────────────────────────────────────────────────────
+// -- Scoring helpers -----------------------------------------------------------
 const CLEAN_MAP: Record<string, number>  = { A: 5, B: 4, C: 3, D: 1 };
 const CLEAN_MAP2: Record<string, number> = { A: 5, B: 4, C: 3, D: 2 };
 const SOCIAL_MAP: Record<string, number>  = { A: 1, B: 2, C: 4, D: 5 };
@@ -292,7 +292,7 @@ function guestsFrom(a?: string): GuestFrequency {
   return "frequently";
 }
 
-// ── Onboarding photo picker ───────────────────────────────────────────────────
+// -- Onboarding photo picker ---------------------------------------------------
 function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -332,7 +332,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
   }
 
   function prompt() {
-    // On web, camera isn't available — go straight to library picker
+    // On web, camera isn't available � go straight to library picker
     if (Platform.OS === "web") {
       pick(false);
       return;
@@ -351,7 +351,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
           <Image source={{ uri: value }} style={obPhotoStyles.avatar} />
         ) : (
           <View style={[obPhotoStyles.avatar, obPhotoStyles.placeholder]}>
-            <Text style={obPhotoStyles.icon}>📷</Text>
+            <Text style={obPhotoStyles.icon}>??</Text>
             <Text style={obPhotoStyles.hint}>Add photo</Text>
           </View>
         )}
@@ -361,12 +361,12 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
           </View>
         ) : (
           <View style={obPhotoStyles.badge}>
-            <Text style={obPhotoStyles.badgeText}>✎</Text>
+            <Text style={obPhotoStyles.badgeText}>?</Text>
           </View>
         )}
       </Pressable>
       <Text style={obPhotoStyles.caption}>
-        {uploading ? "Uploading…" : `Profile photo${value ? "" : " (optional)"}`}
+        {uploading ? "Uploading�" : `Profile photo${value ? "" : " (optional)"}`}
       </Text>
       {!!value && !uploading && (
         <Pressable onPress={() => onChange("")}>
@@ -394,7 +394,7 @@ const obPhotoStyles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -408,7 +408,7 @@ const obPhotoStyles = StyleSheet.create({
   remove: { fontSize: 12, color: "#ef4444" },
 });
 
-// ── Step 0: Identity + basics ─────────────────────────────────────────────────
+// -- Step 0: Identity + basics -------------------------------------------------
 function Step0({ p, set }: StepProps) {
   return (
     <>
@@ -466,7 +466,7 @@ function Step0({ p, set }: StepProps) {
           style={[styles.input, styles.textArea]}
           value={p.bio}
           onChangeText={(v) => set("bio", v.slice(0, 250))}
-          placeholder="A short intro — hobbies, lifestyle, anything a roommate should know…"
+          placeholder="A short intro � hobbies, lifestyle, anything a roommate should know�"
           placeholderTextColor="#9ca3af"
           multiline
           numberOfLines={5}
@@ -474,7 +474,7 @@ function Step0({ p, set }: StepProps) {
         />
       </View>
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional · only shared after matching)</Text></Text>
+        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional � only shared after matching)</Text></Text>
         <View style={styles.igRow}>
           <Text style={styles.igAt}>@</Text>
           <TextInput
@@ -492,7 +492,7 @@ function Step0({ p, set }: StepProps) {
   );
 }
 
-// ── Step 1: Hard facts ────────────────────────────────────────────────────────
+// -- Step 1: Hard facts --------------------------------------------------------
 function Step1({ p, set }: StepProps) {
   return (
     <>
@@ -500,10 +500,10 @@ function Step1({ p, set }: StepProps) {
       <Chips<SleepSchedule>
         label="Sleep schedule"
         options={[
-          { value: "early", label: "🌅 Early riser" },
-          { value: "normal", label: "🌤 Normal" },
-          { value: "night-owl", label: "🌙 Night owl" },
-          { value: "shift", label: "🔄 Shift worker" },
+          { value: "early", label: "?? Early riser" },
+          { value: "normal", label: "?? Normal" },
+          { value: "night-owl", label: "?? Night owl" },
+          { value: "shift", label: "?? Shift worker" },
         ]}
         value={p.sleepSchedule}
         onSelect={(v) => set("sleepSchedule", v)}
@@ -511,10 +511,10 @@ function Step1({ p, set }: StepProps) {
       <Chips<"none" | "dog" | "cat" | "both">
         label="Pets I own"
         options={[
-          { value: "none", label: "No pets 🚫" },
-          { value: "dog", label: "Dog 🐶" },
-          { value: "cat", label: "Cat 🐱" },
-          { value: "both", label: "Both 🐶🐱" },
+          { value: "none", label: "No pets ??" },
+          { value: "dog", label: "Dog ??" },
+          { value: "cat", label: "Cat ??" },
+          { value: "both", label: "Both ????" },
         ]}
         value={p.hasDog && p.hasCat ? "both" : p.hasDog ? "dog" : p.hasCat ? "cat" : "none"}
         onSelect={(v) => {
@@ -592,7 +592,7 @@ function Step1({ p, set }: StepProps) {
   );
 }
 
-// ── Step 2: Cleanliness quiz ──────────────────────────────────────────────────
+// -- Step 2: Cleanliness quiz --------------------------------------------------
 function Step2({
   openQ, setOpenQ, answers, setAnswer,
 }: {
@@ -614,8 +614,8 @@ function Step2({
         num={1}
         question="Which best describes your relationship with smoking, vaping, or alcohol in the home?"
         options={[
-          { value: "A", label: "Strictly substance-free — no smoking, vaping, or alcohol anywhere on the property." },
-          { value: "B", label: "Alcohol is fine, but I need a 100% smoke/vape-free home — smells really affect me." },
+          { value: "A", label: "Strictly substance-free � no smoking, vaping, or alcohol anywhere on the property." },
+          { value: "B", label: "Alcohol is fine, but I need a 100% smoke/vape-free home � smells really affect me." },
           { value: "C", label: "Fine with social drinking and outside-only smoking or vaping." },
           { value: "D", label: "Comfortable with social drinking and occasional indoor vaping or cannabis use." },
         ]}
@@ -626,10 +626,10 @@ function Step2({
         num={2}
         question="A roommate's pet leaves hair on the couch or has an occasional accident. What's your take?"
         options={[
-          { value: "A", label: "Deal-breaker — I have allergies or a very low tolerance for pet messes and smells." },
+          { value: "A", label: "Deal-breaker � I have allergies or a very low tolerance for pet messes and smells." },
           { value: "B", label: "I like animals, but they must stay off shared furniture and out of my room." },
           { value: "C", label: "I love pets and don't mind some hair, as long as the owner cleans up messes right away." },
-          { value: "D", label: "Pet parent at heart — I'll probably end up helping care for any pet in the house." },
+          { value: "D", label: "Pet parent at heart � I'll probably end up helping care for any pet in the house." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
         onNext={() => next(1)}
@@ -638,10 +638,10 @@ function Step2({
         num={3}
         question="How much physical space does your favourite hobby take up in the house?"
         options={[
-          { value: "A", label: "Zero footprint — my hobbies are digital or happen entirely outside the home." },
-          { value: "B", label: "Small footprint — one bin or a small desk setup for crafts or supplies." },
-          { value: "C", label: "Moderate footprint — a bike, instrument, or larger equipment needing a corner." },
-          { value: "D", label: "Large footprint — camping gear, multiple bikes, or studio supplies needing extra storage." },
+          { value: "A", label: "Zero footprint � my hobbies are digital or happen entirely outside the home." },
+          { value: "B", label: "Small footprint � one bin or a small desk setup for crafts or supplies." },
+          { value: "C", label: "Moderate footprint � a bike, instrument, or larger equipment needing a corner." },
+          { value: "D", label: "Large footprint � camping gear, multiple bikes, or studio supplies needing extra storage." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
         onNext={() => next(2)} isLast
@@ -650,7 +650,7 @@ function Step2({
   );
 }
 
-// ── Step 3: Social energy quiz ────────────────────────────────────────────────
+// -- Step 3: Social energy quiz ------------------------------------------------
 function Step3({
   openQ, setOpenQ, answers, setAnswer,
 }: {
@@ -666,16 +666,16 @@ function Step3({
     <>
       <StepHeading
         title="Your social side"
-        subtitle="These questions help us determine your social energy level. Be honest — there's no wrong answer."
+        subtitle="These questions help us determine your social energy level. Be honest � there's no wrong answer."
       />
       <AccordionQuestion
         num={1}
         question="It's 6:00 PM on a Tuesday after a long day. Where are you?"
         options={[
-          { value: "A", label: "In my room with the door closed — I need total solitude to recharge." },
+          { value: "A", label: "In my room with the door closed � I need total solitude to recharge." },
           { value: "B", label: "Happy to chat briefly while making food, then heading to my own space." },
           { value: "C", label: "In the common area, hoping my roommate is around to vent or watch something." },
-          { value: "D", label: "Rarely home — I usually stay out with friends until I'm ready to sleep." },
+          { value: "D", label: "Rarely home � I usually stay out with friends until I'm ready to sleep." },
         ]}
         answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
         onNext={() => next(0)}
@@ -684,10 +684,10 @@ function Step3({
         num={2}
         question="How do you feel about unannounced visitors or frequent guests?"
         options={[
-          { value: "A", label: "My home is private — I prefer 24-hour notice before any guest comes over." },
-          { value: "B", label: "Occasional guests are fine, but max 1–2 nights a week with a quick heads-up." },
-          { value: "C", label: "Very social — comfortable with friends dropping by anytime in the common areas." },
-          { value: "D", label: "Love hosting — I'd like small gatherings or dinner parties 3+ times a week." },
+          { value: "A", label: "My home is private � I prefer 24-hour notice before any guest comes over." },
+          { value: "B", label: "Occasional guests are fine, but max 1�2 nights a week with a quick heads-up." },
+          { value: "C", label: "Very social � comfortable with friends dropping by anytime in the common areas." },
+          { value: "D", label: "Love hosting � I'd like small gatherings or dinner parties 3+ times a week." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
         onNext={() => next(1)}
@@ -696,10 +696,10 @@ function Step3({
         num={3}
         question="What is the 'soundtrack' of your home life?"
         options={[
-          { value: "A", label: "Library quiet — I use headphones for everything and expect near-silence." },
-          { value: "B", label: "Low background — a TV at low volume or quiet music is fine, but no loud bass." },
-          { value: "C", label: "Normal activity — cooking sounds, talking, and music are all fine." },
-          { value: "D", label: "High energy — I usually have music or TV going at all times." },
+          { value: "A", label: "Library quiet � I use headphones for everything and expect near-silence." },
+          { value: "B", label: "Low background � a TV at low volume or quiet music is fine, but no loud bass." },
+          { value: "C", label: "Normal activity � cooking sounds, talking, and music are all fine." },
+          { value: "D", label: "High energy � I usually have music or TV going at all times." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
         onNext={() => next(2)} isLast
@@ -708,7 +708,7 @@ function Step3({
   );
 }
 
-// ── Step 4: Review ────────────────────────────────────────────────────────────
+// -- Step 4: Review ------------------------------------------------------------
 function Step4({ p, cleanScore, socialScore }: { p: Profile; cleanScore: Cleanliness; socialScore: SocialEnergy }) {
   const cleanLabel  = ["", "Very relaxed", "Relaxed", "Moderate", "Tidy", "Spotless"][cleanScore];
   const socialLabel = ["", "Very introverted", "Introverted", "Balanced", "Social", "Very social"][socialScore];
@@ -716,40 +716,40 @@ function Step4({ p, cleanScore, socialScore }: { p: Profile; cleanScore: Cleanli
     <>
       <StepHeading title="Review & save" subtitle="Here's what we've got. Tap Finish to save your profile!" />
       <View style={styles.reviewCard}>
-        <Text style={styles.reviewName}>{p.firstName || "—"}{p.age ? `, ${p.age}` : ""}</Text>
+        <Text style={styles.reviewName}>{p.firstName || "�"}{p.age ? `, ${p.age}` : ""}</Text>
         {!!p.program && <Text style={styles.reviewSub}>{p.program}</Text>}
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Lease</Text>
-        <Text style={styles.reviewValue}>{p.leaseDuration ?? "—"}</Text>
+        <Text style={styles.reviewValue}>{p.leaseDuration ?? "�"}</Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Sleep</Text>
-        <Text style={styles.reviewValue}>{p.sleepSchedule ?? "—"}</Text>
+        <Text style={styles.reviewValue}>{p.sleepSchedule ?? "�"}</Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Pets</Text>
         <Text style={styles.reviewValue}>
-          {[p.hasDog && "Dog 🐶", p.hasCat && "Cat 🐱"].filter(Boolean).join(", ") || "None"}
+          {[p.hasDog && "Dog ??", p.hasCat && "Cat ??"].filter(Boolean).join(", ") || "None"}
         </Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Budget</Text>
         <Text style={styles.reviewValue}>
           {p.budgetMin || p.budgetMax
-            ? `$${p.budgetMin ?? "?"} – $${p.budgetMax ?? "?"}/mo`
+            ? `$${p.budgetMin ?? "?"} � $${p.budgetMax ?? "?"}/mo`
             : "Not set"}
         </Text>
       </View>
       <View style={styles.scoreBanner}>
         <View style={styles.scoreItem}>
-          <Text style={styles.scoreEmoji}>🧹</Text>
+          <Text style={styles.scoreEmoji}>??</Text>
           <Text style={styles.scoreValue}>{cleanScore}/5</Text>
           <Text style={styles.scoreDesc}>{cleanLabel}</Text>
         </View>
         <View style={styles.scoreDivider} />
         <View style={styles.scoreItem}>
-          <Text style={styles.scoreEmoji}>🤝</Text>
+          <Text style={styles.scoreEmoji}>??</Text>
           <Text style={styles.scoreValue}>{socialScore}/5</Text>
           <Text style={styles.scoreDesc}>{socialLabel}</Text>
         </View>
@@ -761,7 +761,7 @@ function Step4({ p, cleanScore, socialScore }: { p: Profile; cleanScore: Cleanli
   );
 }
 
-// ── Default profile ───────────────────────────────────────────────────────────
+// -- Default profile -----------------------------------------------------------
 const DEFAULTS: Omit<Profile, "id" | "firstName"> = {
   bio: "",
   program: "",
@@ -783,7 +783,7 @@ const DEFAULTS: Omit<Profile, "id" | "firstName"> = {
   moveInDate: "",
 };
 
-// ── Main onboarding screen ────────────────────────────────────────────────────
+// -- Main onboarding screen ----------------------------------------------------
 export default function OnboardingScreen() {
   const { user, signOut, markOnboardingDone } = useAuth();
   const [step, setStep] = useState(0);
@@ -835,7 +835,7 @@ export default function OnboardingScreen() {
     try {
       const uid = user?.uid;
       if (!uid) {
-        setError("Not logged in – please restart the app and sign in again.");
+        setError("Not logged in � please restart the app and sign in again.");
         setSaving(false);
         return;
       }
@@ -883,7 +883,7 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>🦅 GryphonGrid</Text>
+          <Text style={styles.logo}>?? GryphonGrid</Text>
           <Text style={styles.tagline}>Set up your profile</Text>
         </View>
 
@@ -914,11 +914,11 @@ export default function OnboardingScreen() {
           <View style={styles.navRow}>
             {step > 0 ? (
               <Pressable style={styles.btnBack} onPress={() => { setError(""); setStep((s) => s - 1); }}>
-                <Text style={styles.btnBackText}>← Back</Text>
+                <Text style={styles.btnBackText}>? Back</Text>
               </Pressable>
             ) : (
               <Pressable style={styles.btnBack} onPress={signOut}>
-                <Text style={styles.btnBackText}>← Sign out</Text>
+                <Text style={styles.btnBackText}>? Sign out</Text>
               </Pressable>
             )}
             <Pressable
@@ -929,7 +929,7 @@ export default function OnboardingScreen() {
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.btnNextText}>{isLast ? "Finish 🎉" : "Next →"}</Text>
+                <Text style={styles.btnNextText}>{isLast ? "Finish ??" : "Next ?"}</Text>
               )}
             </Pressable>
           </View>
@@ -939,7 +939,7 @@ export default function OnboardingScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// -- Styles --------------------------------------------------------------------
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -949,10 +949,10 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   header: { alignItems: "center", marginBottom: 20 },
-  logo: { fontSize: 28, fontWeight: "800", color: PURPLE },
+  logo: { fontSize: 28, fontWeight: "800", color: RED },
   tagline: { fontSize: 14, color: "#6b7280", marginTop: 4 },
   progressBg: { height: 6, backgroundColor: "#e5e7eb", borderRadius: 3, marginBottom: 6, overflow: "hidden" },
-  progressFill: { height: 6, backgroundColor: PURPLE, borderRadius: 3 },
+  progressFill: { height: 6, backgroundColor: RED, borderRadius: 3 },
   progressLabel: { fontSize: 12, color: "#9ca3af", textAlign: "right", marginBottom: 16 },
   card: {
     backgroundColor: "#fff",
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "#f9fafb",
   },
-  chipActive: { backgroundColor: PURPLE, borderColor: PURPLE },
+  chipActive: { backgroundColor: RED, borderColor: RED },
   chipText: { fontSize: 13, color: "#374151", fontWeight: "500" },
   chipTextActive: { color: "#fff" },
   toggleGroup: {
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     overflow: "hidden",
   },
-  accordionOpen: { borderColor: PURPLE },
+  accordionOpen: { borderColor: RED },
   accordionHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -1033,18 +1033,18 @@ const styles = StyleSheet.create({
   accordionNum: {
     fontSize: 11,
     fontWeight: "700",
-    color: PURPLE,
+    color: RED,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 2,
   },
   accordionQ: { fontSize: 14, color: "#111827", fontWeight: "600", lineHeight: 20 },
-  accordionSelected: { fontSize: 13, color: PURPLE, fontWeight: "500", marginTop: 6 },
+  accordionSelected: { fontSize: 13, color: RED, fontWeight: "500", marginTop: 6 },
   accordionChevron: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
   accordionNextBtn: {
     marginTop: 8,
     alignSelf: "flex-end",
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     borderRadius: 10,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -1061,7 +1061,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     gap: 10,
   },
-  optionRowActive: { borderColor: PURPLE, backgroundColor: "#f5f0ff" },
+  optionRowActive: { borderColor: RED, backgroundColor: "#FFF0F0" },
   optionCircle: {
     width: 26,
     height: 26,
@@ -1071,21 +1071,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  optionCircleActive: { backgroundColor: PURPLE, borderColor: PURPLE },
+  optionCircleActive: { backgroundColor: RED, borderColor: RED },
   optionCircleText: { fontSize: 12, fontWeight: "700", color: "#6b7280" },
   optionCircleTextActive: { color: "#fff" },
   optionText: { flex: 1, fontSize: 13, color: "#374151", lineHeight: 19 },
   optionTextActive: { color: "#111827", fontWeight: "500" },
   // Review
   reviewCard: {
-    backgroundColor: "#f5f0ff",
+    backgroundColor: "#FFF0F0",
     borderRadius: 14,
     padding: 18,
     alignItems: "center",
     marginBottom: 16,
   },
   reviewName: { fontSize: 22, fontWeight: "800", color: "#111827" },
-  reviewSub: { fontSize: 14, color: PURPLE, fontWeight: "600", marginTop: 2 },
+  reviewSub: { fontSize: 14, color: RED, fontWeight: "600", marginTop: 2 },
   reviewRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1097,7 +1097,7 @@ const styles = StyleSheet.create({
   reviewValue: { fontSize: 13, color: "#111827", fontWeight: "500" },
   scoreBanner: {
     flexDirection: "row",
-    backgroundColor: "#f5f0ff",
+    backgroundColor: "#FFF0F0",
     borderRadius: 14,
     padding: 18,
     marginTop: 16,
@@ -1106,7 +1106,7 @@ const styles = StyleSheet.create({
   },
   scoreItem: { flex: 1, alignItems: "center", gap: 4 },
   scoreEmoji: { fontSize: 24 },
-  scoreValue: { fontSize: 22, fontWeight: "800", color: PURPLE },
+  scoreValue: { fontSize: 22, fontWeight: "800", color: RED },
   scoreDesc: { fontSize: 12, color: "#6b7280", textAlign: "center" },
   scoreDivider: { width: 1, height: 50, backgroundColor: "#ddd6fe", marginHorizontal: 12 },
   reviewNote: { fontSize: 12, color: "#9ca3af", textAlign: "center", lineHeight: 17 },
@@ -1127,9 +1127,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   btnBack: { paddingVertical: 12, paddingHorizontal: 4 },
-  btnBackText: { color: PURPLE, fontSize: 15, fontWeight: "600" },
+  btnBackText: { color: RED, fontSize: 15, fontWeight: "600" },
   btnNext: {
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -1172,5 +1172,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
-  dateModalDoneText: { color: PURPLE, fontSize: 16, fontWeight: "700" },
+  dateModalDoneText: { color: RED, fontSize: 16, fontWeight: "700" },
 });

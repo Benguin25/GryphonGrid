@@ -149,7 +149,7 @@ function friendlyError(code?: string) {
   }
 }
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 const styles = StyleSheet.create({
   container: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 30,
     fontWeight: "800",
-    color: PURPLE,
+    color: RED,
   },
   tagline: {
     fontSize: 14,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnPrimary: {
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     marginTop: 4,
   },
   btnPrimaryText: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     fontSize: 14,
-    color: PURPLE,
+    color: RED,
     fontWeight: "600",
   },
 });

@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { loadProfile, loadAcceptedMatches, loadPendingRequests } from "../../lib/db";
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 const FALLBACK_ME: Profile = {
   id: "me", firstName: "", program: "", bio: "",
@@ -56,7 +56,7 @@ export default function MatchesScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={PURPLE} size="large" />
+        <ActivityIndicator color={RED} size="large" />
       </View>
     );
   }
@@ -89,8 +89,8 @@ export default function MatchesScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchData(true)}
-            tintColor={PURPLE}
-            colors={[PURPLE]}
+            tintColor={RED}
+            colors={[RED]}
           />
         }
         renderSectionHeader={({ section }) => (
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   photoPlaceholder: { width: 56, height: 56, borderRadius: 10, backgroundColor: "#e5e7eb", alignItems: "center", justifyContent: "center" },
   cardBody: { flex: 1, gap: 2 },
   cardName:    { fontSize: 16, fontWeight: "700", color: "#111" },
-  cardProgram: { fontSize: 12, color: PURPLE, fontWeight: "500" },
+  cardProgram: { fontSize: 12, color: RED, fontWeight: "500" },
   cardBio:     { fontSize: 12, color: "#6b7280", lineHeight: 17, marginTop: 2 },
   igRow:    { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   igIcon:   { fontSize: 13 },
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     alignItems: "center",
   },
-  pendingBadgeSent:     { backgroundColor: "#f0edff" },
-  pendingBadgeReceived: { backgroundColor: "#fef9c3" },
+  pendingBadgeSent:     { backgroundColor: "#FFF0F0" },
+  pendingBadgeReceived: { backgroundColor: "#FFF8E1" }, // UofG Gold tint
   pendingBadgeText: { fontSize: 9, fontWeight: "700", color: "#374151" },
 });

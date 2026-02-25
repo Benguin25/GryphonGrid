@@ -15,7 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { loadProfile } from "../../lib/db";
 import { Profile } from "../../lib/types";
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 const SLEEP_LABELS: Record<string, string> = {
   early: "🌅 Early riser",
@@ -100,7 +100,7 @@ export default function MyProfileTab() {
   if (profile === undefined) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color={PURPLE} />
+        <ActivityIndicator color={RED} />
       </View>
     );
   }
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   name: { fontSize: 26, fontWeight: "800", textAlign: "center", color: "#111" },
   subtext: { fontSize: 13, color: "#9ca3af", textAlign: "center", marginTop: 2 },
-  program: { fontSize: 15, color: PURPLE, fontWeight: "600", textAlign: "center", marginTop: 4 },
+  program: { fontSize: 15, color: RED, fontWeight: "600", textAlign: "center", marginTop: 4 },
   bio: {
     fontSize: 14,
     color: "#4b5563",
@@ -235,12 +235,12 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: 16,
     marginBottom: 4,
-    backgroundColor: "#f0edff",
+    backgroundColor: "#FFF0F0",
     borderRadius: 999,
     paddingHorizontal: 20,
     paddingVertical: 9,
   },
-  editBtnText: { color: PURPLE, fontSize: 14, fontWeight: "700" },
+  editBtnText: { color: RED, fontSize: 14, fontWeight: "700" },
   accountSection: {
     alignItems: "center",
     marginTop: 12,
@@ -281,5 +281,5 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 13, color: "#111", fontWeight: "500", maxWidth: "55%", textAlign: "right" },
   dots: { flexDirection: "row", gap: 5 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#e5e7eb" },
-  dotFilled: { backgroundColor: PURPLE },
+  dotFilled: { backgroundColor: RED },
 });

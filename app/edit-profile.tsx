@@ -31,7 +31,7 @@ import {
 } from "../lib/types";
 import { useAuth } from "../context/AuthContext";
 
-const PURPLE = "#7c3aed";
+const RED = "#CC0000";
 
 // ── Calendar date picker (pure React Native, no native modules) ───────────────
 const CAL_MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -137,14 +137,14 @@ const calStyles = StyleSheet.create({
   cancel:           { fontSize: 15, color: "#6b7280", width: 60 },
   nav:              { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 10 },
   navBtn:           { padding: 10 },
-  navArrow:         { fontSize: 24, color: PURPLE, fontWeight: "700", lineHeight: 26 },
+  navArrow:         { fontSize: 24, color: RED, fontWeight: "700", lineHeight: 26 },
   navMonth:         { fontSize: 16, fontWeight: "700", color: "#111827" },
   weekRow:          { flexDirection: "row", paddingHorizontal: 8, marginBottom: 2 },
   weekDay:          { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#9ca3af", paddingVertical: 4 },
   grid:             { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8 },
   cell:             { width: "14.2857%", aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 100 },
-  cellSelected:     { backgroundColor: PURPLE },
-  cellToday:        { borderWidth: 1.5, borderColor: PURPLE },
+  cellSelected:     { backgroundColor: RED },
+  cellToday:        { borderWidth: 1.5, borderColor: RED },
   cellText:         { fontSize: 14, color: "#111827" },
   cellTextSelected: { color: "#fff", fontWeight: "700" },
   cellTextPast:     { color: "#d1d5db" },
@@ -354,7 +354,7 @@ const photoPickerStyles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -563,15 +563,15 @@ export default function EditProfileScreen() {
         <Text style={styles.fieldLabel}>Pets</Text>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Has dog</Text>
-          <Switch value={profile.hasDog} onValueChange={(v) => set("hasDog", v)} trackColor={{ true: "#7c3aed" }} />
+          <Switch value={profile.hasDog} onValueChange={(v) => set("hasDog", v)} trackColor={{ true: "#CC0000" }} />
         </View>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Has cat</Text>
-          <Switch value={profile.hasCat} onValueChange={(v) => set("hasCat", v)} trackColor={{ true: "#7c3aed" }} />
+          <Switch value={profile.hasCat} onValueChange={(v) => set("hasCat", v)} trackColor={{ true: "#CC0000" }} />
         </View>
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Open to pets</Text>
-          <Switch value={profile.openToPets} onValueChange={(v) => set("openToPets", v)} trackColor={{ true: "#7c3aed" }} />
+          <Switch value={profile.openToPets} onValueChange={(v) => set("openToPets", v)} trackColor={{ true: "#CC0000" }} />
         </View>
         <OptionPicker<PetAllergy>
           label="Allergies"
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   content: { padding: 20, paddingBottom: 60 },
   backBtn: { marginBottom: 8 },
-  backText: { color: "#7c3aed", fontSize: 16, fontWeight: "500" },
+  backText: { color: "#CC0000", fontSize: 16, fontWeight: "500" },
   pageTitle: { fontSize: 28, fontWeight: "800", color: "#111", marginBottom: 20 },
 
   sectionHeader: {
@@ -680,7 +680,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#CC0000",
     color: "#fff",
     textAlign: "center",
     lineHeight: 28,
@@ -715,12 +715,12 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: "#fafafa",
   },
-  chipActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  chipActive: { backgroundColor: "#CC0000", borderColor: "#CC0000" },
   chipText: { fontSize: 13, color: "#374151" },
   chipTextActive: { color: "#fff", fontWeight: "600" },
 
   quizNotice: {
-    backgroundColor: "#f0edff",
+    backgroundColor: "#FFF0F0",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#ddd6fe",
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 6,
   },
-  quizNoticeTitle: { fontSize: 14, fontWeight: "700", color: "#7c3aed" },
+  quizNoticeTitle: { fontSize: 14, fontWeight: "700", color: "#CC0000" },
   quizNoticeBody: { fontSize: 12, color: "#6b7280", lineHeight: 17 },
   quizScores: {
     flexDirection: "row",
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quizScore: { alignItems: "center", gap: 2 },
-  quizScoreNum: { fontSize: 20, fontWeight: "800", color: "#7c3aed" },
+  quizScoreNum: { fontSize: 20, fontWeight: "800", color: "#CC0000" },
   quizScoreLabel: { fontSize: 11, color: "#9ca3af" },
   quizScoreDivider: { width: 1, height: 32, backgroundColor: "#ddd6fe" },
 
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     backgroundColor: "#fafafa",
   },
-  scaleDotActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  scaleDotActive: { backgroundColor: "#CC0000", borderColor: "#CC0000" },
   scaleLabels: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   scaleLabelText: { fontSize: 11, color: "#9ca3af" },
 
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
 
   saveBtn: {
     marginTop: 32,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#CC0000",
     borderRadius: 999,
     paddingVertical: 16,
   },
@@ -834,5 +834,5 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e5e7eb",
   },
-  dateModalDoneText: { color: PURPLE, fontSize: 16, fontWeight: "700" },
+  dateModalDoneText: { color: RED, fontSize: 16, fontWeight: "700" },
 });
