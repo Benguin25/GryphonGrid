@@ -1,4 +1,4 @@
-import {
+﻿import {
   View,
   Text,
   TextInput,
@@ -14,6 +14,7 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
@@ -98,10 +99,12 @@ function AccordionQuestion({
           <Text style={styles.accordionNum}>Question {num}</Text>
           <Text style={styles.accordionQ} numberOfLines={open ? undefined : 2}>{question}</Text>
           {!open && selected && (
-            <Text style={styles.accordionSelected}>? {selected.label}</Text>
+            <Text style={styles.accordionSelected}>{"\u2713"} {selected.label}</Text>
           )}
         </View>
-        <Text style={styles.accordionChevron}>{open ? "?" : "?"}</Text>
+        <View style={styles.accordionChevronWrap}>
+          <FontAwesome name={open ? "chevron-up" : "chevron-down"} size={12} color="#9ca3af" />
+        </View>
       </Pressable>
       {open && (
         <View style={styles.accordionBody}>
@@ -123,7 +126,8 @@ function AccordionQuestion({
           ))}
           {!!answer && onNext && (
             <Pressable style={styles.accordionNextBtn} onPress={onNext}>
-              <Text style={styles.accordionNextText}>{isLast ? "Done ?" : "Next ?"}</Text>
+              <FontAwesome name="check" size={13} color={RED} style={{ marginRight: 4 }} />
+              <Text style={styles.accordionNextText}>{isLast ? "Done" : "Next"}</Text>
             </Pressable>
           )}
         </View>
@@ -177,7 +181,7 @@ function DatePickerField({
       <Text style={styles.fieldLabel}>{label}</Text>
       <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
         <Text style={[styles.dateBtnText, !value && styles.datePlaceholder]}>{displayValue}</Text>
-        <Text style={styles.dateIcon}>??</Text>
+        <FontAwesome name="chevron-down" size={14} color="#6b7280" />
       </Pressable>
       <Modal visible={show} transparent animationType="slide">
         <View style={styles.dateModalBg}>
@@ -191,11 +195,11 @@ function DatePickerField({
             </View>
             <View style={calStyles.nav}>
               <Pressable onPress={prevMonth} style={calStyles.navBtn}>
-                <Text style={calStyles.navArrow}>�</Text>
+                <FontAwesome name="chevron-left" size={14} color="#374151" />
               </Pressable>
               <Text style={calStyles.navMonth}>{CAL_MONTHS[viewMonth]} {viewYear}</Text>
               <Pressable onPress={nextMonth} style={calStyles.navBtn}>
-                <Text style={calStyles.navArrow}>�</Text>
+                <FontAwesome name="chevron-right" size={14} color="#374151" />
               </Pressable>
             </View>
             <View style={calStyles.weekRow}>
@@ -332,7 +336,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
   }
 
   function prompt() {
-    // On web, camera isn't available � go straight to library picker
+    // On web, camera isn't available  -  go straight to library picker
     if (Platform.OS === "web") {
       pick(false);
       return;
@@ -351,7 +355,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
           <Image source={{ uri: value }} style={obPhotoStyles.avatar} />
         ) : (
           <View style={[obPhotoStyles.avatar, obPhotoStyles.placeholder]}>
-            <Text style={obPhotoStyles.icon}>??</Text>
+            <FontAwesome name="user" size={32} color="#9ca3af" />
             <Text style={obPhotoStyles.hint}>Add photo</Text>
           </View>
         )}
@@ -366,7 +370,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
         )}
       </Pressable>
       <Text style={obPhotoStyles.caption}>
-        {uploading ? "Uploading�" : `Profile photo${value ? "" : " (optional)"}`}
+        {uploading ? "Uploading..." : `Profile photo${value ? "" : " (optional)"}`}
       </Text>
       {!!value && !uploading && (
         <Pressable onPress={() => onChange("")}>
@@ -466,7 +470,7 @@ function Step0({ p, set }: StepProps) {
           style={[styles.input, styles.textArea]}
           value={p.bio}
           onChangeText={(v) => set("bio", v.slice(0, 250))}
-          placeholder="A short intro � hobbies, lifestyle, anything a roommate should know�"
+          placeholder="A short intro  -  hobbies, lifestyle, anything a roommate should know - "
           placeholderTextColor="#9ca3af"
           multiline
           numberOfLines={5}
@@ -474,7 +478,7 @@ function Step0({ p, set }: StepProps) {
         />
       </View>
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional � only shared after matching)</Text></Text>
+        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional  -  only shared after matching)</Text></Text>
         <View style={styles.igRow}>
           <Text style={styles.igAt}>@</Text>
           <TextInput
@@ -500,10 +504,10 @@ function Step1({ p, set }: StepProps) {
       <Chips<SleepSchedule>
         label="Sleep schedule"
         options={[
-          { value: "early", label: "Early riser" },
-          { value: "normal", label: "Normal" },
-          { value: "night-owl", label: "Night owl" },
-          { value: "shift", label: "Shift worker" },
+          { value: "early",      label: "\uD83C\uDF05 Early riser" },
+          { value: "normal",     label: "\u2600\uFE0F Normal" },
+          { value: "night-owl",  label: "\uD83C\uDF19 Night owl" },
+          { value: "shift",      label: "\uD83D\uDD04 Shift worker" },
         ]}
         value={p.sleepSchedule}
         onSelect={(v) => set("sleepSchedule", v)}
@@ -512,9 +516,9 @@ function Step1({ p, set }: StepProps) {
         label="Pets I own"
         options={[
           { value: "none", label: "No pets" },
-          { value: "dog", label: "Dog" },
-          { value: "cat", label: "Cat" },
-          { value: "both", label: "Both" },
+          { value: "dog",  label: "\uD83D\uDC36 Dog" },
+          { value: "cat",  label: "\uD83D\uDC31 Cat" },
+          { value: "both", label: "\uD83D\uDC36\uD83D\uDC31 Both" },
         ]}
         value={p.hasDog && p.hasCat ? "both" : p.hasDog ? "dog" : p.hasCat ? "cat" : "none"}
         onSelect={(v) => {
@@ -664,8 +668,8 @@ function Step2({
         num={1}
         question="Which best describes your relationship with smoking, vaping, or alcohol in the home?"
         options={[
-          { value: "A", label: "Strictly substance-free � no smoking, vaping, or alcohol anywhere on the property." },
-          { value: "B", label: "Alcohol is fine, but I need a 100% smoke/vape-free home � smells really affect me." },
+          { value: "A", label: "Strictly substance-free  -  no smoking, vaping, or alcohol anywhere on the property." },
+          { value: "B", label: "Alcohol is fine, but I need a 100% smoke/vape-free home  -  smells really affect me." },
           { value: "C", label: "Fine with social drinking and outside-only smoking or vaping." },
           { value: "D", label: "Comfortable with social drinking and occasional indoor vaping or cannabis use." },
         ]}
@@ -676,10 +680,10 @@ function Step2({
         num={2}
         question="A roommate's pet leaves hair on the couch or has an occasional accident. What's your take?"
         options={[
-          { value: "A", label: "Deal-breaker � I have allergies or a very low tolerance for pet messes and smells." },
+          { value: "A", label: "Deal-breaker  -  I have allergies or a very low tolerance for pet messes and smells." },
           { value: "B", label: "I like animals, but they must stay off shared furniture and out of my room." },
           { value: "C", label: "I love pets and don't mind some hair, as long as the owner cleans up messes right away." },
-          { value: "D", label: "Pet parent at heart � I'll probably end up helping care for any pet in the house." },
+          { value: "D", label: "Pet parent at heart  -  I'll probably end up helping care for any pet in the house." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
         onNext={() => next(1)}
@@ -688,10 +692,10 @@ function Step2({
         num={3}
         question="How much physical space does your favourite hobby take up in the house?"
         options={[
-          { value: "A", label: "Zero footprint � my hobbies are digital or happen entirely outside the home." },
-          { value: "B", label: "Small footprint � one bin or a small desk setup for crafts or supplies." },
-          { value: "C", label: "Moderate footprint � a bike, instrument, or larger equipment needing a corner." },
-          { value: "D", label: "Large footprint � camping gear, multiple bikes, or studio supplies needing extra storage." },
+          { value: "A", label: "Zero footprint  -  my hobbies are digital or happen entirely outside the home." },
+          { value: "B", label: "Small footprint  -  one bin or a small desk setup for crafts or supplies." },
+          { value: "C", label: "Moderate footprint  -  a bike, instrument, or larger equipment needing a corner." },
+          { value: "D", label: "Large footprint  -  camping gear, multiple bikes, or studio supplies needing extra storage." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
         onNext={() => next(2)} isLast
@@ -716,16 +720,16 @@ function Step3({
     <>
       <StepHeading
         title="Your social side"
-        subtitle="These questions help us determine your social energy level. Be honest � there's no wrong answer."
+        subtitle="These questions help us determine your social energy level. Be honest  -  there's no wrong answer."
       />
       <AccordionQuestion
         num={1}
         question="It's 6:00 PM on a Tuesday after a long day. Where are you?"
         options={[
-          { value: "A", label: "In my room with the door closed � I need total solitude to recharge." },
+          { value: "A", label: "In my room with the door closed  -  I need total solitude to recharge." },
           { value: "B", label: "Happy to chat briefly while making food, then heading to my own space." },
           { value: "C", label: "In the common area, hoping my roommate is around to vent or watch something." },
-          { value: "D", label: "Rarely home � I usually stay out with friends until I'm ready to sleep." },
+          { value: "D", label: "Rarely home  -  I usually stay out with friends until I'm ready to sleep." },
         ]}
         answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
         onNext={() => next(0)}
@@ -734,10 +738,10 @@ function Step3({
         num={2}
         question="How do you feel about unannounced visitors or frequent guests?"
         options={[
-          { value: "A", label: "My home is private � I prefer 24-hour notice before any guest comes over." },
-          { value: "B", label: "Occasional guests are fine, but max 1�2 nights a week with a quick heads-up." },
-          { value: "C", label: "Very social � comfortable with friends dropping by anytime in the common areas." },
-          { value: "D", label: "Love hosting � I'd like small gatherings or dinner parties 3+ times a week." },
+          { value: "A", label: "My home is private  -  I prefer 24-hour notice before any guest comes over." },
+          { value: "B", label: "Occasional guests are fine, but max 1 - 2 nights a week with a quick heads-up." },
+          { value: "C", label: "Very social  -  comfortable with friends dropping by anytime in the common areas." },
+          { value: "D", label: "Love hosting  -  I'd like small gatherings or dinner parties 3+ times a week." },
         ]}
         answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
         onNext={() => next(1)}
@@ -746,10 +750,10 @@ function Step3({
         num={3}
         question="What is the 'soundtrack' of your home life?"
         options={[
-          { value: "A", label: "Library quiet � I use headphones for everything and expect near-silence." },
-          { value: "B", label: "Low background � a TV at low volume or quiet music is fine, but no loud bass." },
-          { value: "C", label: "Normal activity � cooking sounds, talking, and music are all fine." },
-          { value: "D", label: "High energy � I usually have music or TV going at all times." },
+          { value: "A", label: "Library quiet  -  I use headphones for everything and expect near-silence." },
+          { value: "B", label: "Low background  -  a TV at low volume or quiet music is fine, but no loud bass." },
+          { value: "C", label: "Normal activity  -  cooking sounds, talking, and music are all fine." },
+          { value: "D", label: "High energy  -  I usually have music or TV going at all times." },
         ]}
         answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
         onNext={() => next(2)} isLast
@@ -773,16 +777,16 @@ function Step4({
     <>
       <StepHeading title="Review & save" subtitle="Here's what we've got. Tap Finish to save your profile!" />
       <View style={styles.reviewCard}>
-        <Text style={styles.reviewName}>{p.firstName || "�"}{p.age ? `, ${p.age}` : ""}</Text>
+        <Text style={styles.reviewName}>{p.firstName || "-"}{p.age ? `, ${p.age}` : ""}</Text>
         {!!p.program && <Text style={styles.reviewSub}>{p.program}</Text>}
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Lease</Text>
-        <Text style={styles.reviewValue}>{p.leaseDuration ?? "�"}</Text>
+        <Text style={styles.reviewValue}>{p.leaseDuration ?? "-"}</Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Sleep</Text>
-        <Text style={styles.reviewValue}>{p.sleepSchedule ?? "�"}</Text>
+        <Text style={styles.reviewValue}>{p.sleepSchedule ?? "-"}</Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Pets</Text>
@@ -794,7 +798,7 @@ function Step4({
         <Text style={styles.reviewLabel}>Budget</Text>
         <Text style={styles.reviewValue}>
           {p.budgetMin || p.budgetMax
-            ? `$${p.budgetMin ?? "?"} � $${p.budgetMax ?? "?"}/mo`
+            ? `$${p.budgetMin ?? "?"} - $${p.budgetMax ?? "?"}/mo`
             : "Not set"}
         </Text>
       </View>
@@ -893,7 +897,7 @@ export default function OnboardingScreen() {
     try {
       const uid = user?.uid;
       if (!uid) {
-        setError("Not logged in � please restart the app and sign in again.");
+        setError("Not logged in  -  please restart the app and sign in again.");
         setSaving(false);
         return;
       }
@@ -941,7 +945,7 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.logo}>?? GryphonGrid</Text>
+          <Text style={styles.logo}>GryphonGrid</Text>
           <Text style={styles.tagline}>Set up your profile</Text>
         </View>
 
@@ -972,11 +976,11 @@ export default function OnboardingScreen() {
           <View style={styles.navRow}>
             {step > 0 ? (
               <Pressable style={styles.btnBack} onPress={() => { setError(""); setStep((s) => s - 1); }}>
-                <Text style={styles.btnBackText}>? Back</Text>
+                <Text style={styles.btnBackText}>Back</Text>
               </Pressable>
             ) : (
               <Pressable style={styles.btnBack} onPress={signOut}>
-                <Text style={styles.btnBackText}>? Sign out</Text>
+                <Text style={styles.btnBackText}>Sign out</Text>
               </Pressable>
             )}
             <Pressable
@@ -987,7 +991,7 @@ export default function OnboardingScreen() {
               {saving ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.btnNextText}>{isLast ? "Finish ??" : "Next ?"}</Text>
+                <Text style={styles.btnNextText}>{isLast ? "Finish" : "Next"}</Text>
               )}
             </Pressable>
           </View>
@@ -1099,13 +1103,17 @@ const styles = StyleSheet.create({
   accordionQ: { fontSize: 14, color: "#111827", fontWeight: "600", lineHeight: 20 },
   accordionSelected: { fontSize: 13, color: RED, fontWeight: "500", marginTop: 6 },
   accordionChevron: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
+  accordionChevronWrap: { width: 20, alignItems: "center", justifyContent: "center" },
   accordionNextBtn: {
     marginTop: 8,
     alignSelf: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: RED,
     borderRadius: 10,
     paddingHorizontal: 20,
     paddingVertical: 10,
+    gap: 6,
   },
   accordionNextText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   accordionBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8 },
