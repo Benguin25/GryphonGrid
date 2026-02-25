@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -85,7 +86,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 export default function MyProfileTab() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
 
@@ -186,6 +187,21 @@ export default function MyProfileTab() {
           />
         )}
       </Card>
+
+      <View style={styles.accountSection}>
+        {user?.email ? (
+          <Text style={styles.accountEmail}>Signed in as {user.email}</Text>
+        ) : null}
+        <Pressable
+          style={styles.signOutBtn}
+          onPress={() => Alert.alert("Sign out", "Are you sure?", [
+            { text: "Cancel", style: "cancel" },
+            { text: "Sign out", style: "destructive", onPress: signOut },
+          ])}
+        >
+          <Text style={styles.signOutBtnText}>Sign out</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -225,6 +241,24 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   editBtnText: { color: PURPLE, fontSize: 14, fontWeight: "700" },
+  accountSection: {
+    alignItems: "center",
+    marginTop: 12,
+    gap: 8,
+  },
+  accountEmail: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  signOutBtn: {
+    borderWidth: 1,
+    borderColor: "#fca5a5",
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    backgroundColor: "#fff",
+  },
+  signOutBtnText: { color: "#dc2626", fontWeight: "600", fontSize: 13 },
   card: {
     marginTop: 16,
     backgroundColor: "#fff",
