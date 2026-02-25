@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -194,10 +193,7 @@ export default function MyProfileTab() {
         ) : null}
         <Pressable
           style={styles.signOutBtn}
-          onPress={() => Alert.alert("Sign out", "Are you sure?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Sign out", style: "destructive", onPress: signOut },
-          ])}
+          onPress={() => signOut()}
         >
           <Text style={styles.signOutBtnText}>Sign out</Text>
         </Pressable>

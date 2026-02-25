@@ -518,7 +518,7 @@ export default function EditProfileScreen() {
       />
 
       <View style={styles.quizNotice}>
-        <Text style={styles.quizNoticeTitle}>🧹 Cleanliness · 🤝 Social energy</Text>
+        <Text style={styles.quizNoticeTitle}>Cleanliness · Social energy</Text>
         <Text style={styles.quizNoticeBody}>
           These scores are calculated from your onboarding quiz and cannot be edited here.
           Re-do onboarding if you want to update them.
@@ -535,6 +535,22 @@ export default function EditProfileScreen() {
           </View>
         </View>
       </View>
+
+      <ScalePicker
+        label="Preferred cleanliness in a roommate"
+        value={profile.prefCleanliness}
+        onChange={(v) => set("prefCleanliness", v as Cleanliness)}
+        lowLabel="Relaxed"
+        highLabel="Spotless"
+      />
+
+      <ScalePicker
+        label="Preferred social energy in a roommate"
+        value={profile.prefSocialEnergy}
+        onChange={(v) => set("prefSocialEnergy", v as SocialEnergy)}
+        lowLabel="Introverted"
+        highLabel="Very social"
+      />
 
       <OptionPicker<GuestFrequency>
         label="Guests frequency (your habit)"
