@@ -21,8 +21,9 @@
  */
 
 import { initializeApp, getApps } from "firebase/app";
-import { initializeAuth, getAuth } from "firebase/auth";
+import { initializeAuth, getAuth, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Loaded from .env.local (never commit that file) ──────────────────────────
@@ -49,40 +50,43 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 export const db = getFirestore(app);
 
 /**
- * Custom AsyncStorage persistence so users stay logged-in across app restarts.
- * Firebase v10+ removed getReactNativePersistence; this is the manual equivalent.
+ * Use browser-native localStorage persistence on web, and a custom
+ * AsyncStorage persistence on native (iOS/Android). The plain-object
+ * AsyncStorage shim causes Firebase to throw on web builds.
  */
-const asyncStoragePersistence = {
-  type: "LOCAL" as const,
-  async _isAvailable() {
-    try {
-      await AsyncStorage.setItem("__firebase_test__", "1");
-      await AsyncStorage.removeItem("__firebase_test__");
-      return true;
-    } catch {
-      return false;
-    }
-  },
-  async _set(key: string, value: unknown) {
-    await AsyncStorage.setItem(key, JSON.stringify(value));
-  },
-  async _get(key: string) {
-    const raw = await AsyncStorage.getItem(key);
-    if (!raw) return null;
-    try { return JSON.parse(raw); } catch { return null; }
-  },
-  async _remove(key: string) {
-    await AsyncStorage.removeItem(key);
-  },
-  _addListener(_key: string, _listener: unknown) {},
-  _removeListener(_key: string, _listener: unknown) {},
-};
+const persistence = Platform.OS === "web"
+  ? browserLocalPersistence
+  : {
+      type: "LOCAL" as const,
+      async _isAvailable() {
+        try {
+          await AsyncStorage.setItem("__firebase_test__", "1");
+          await AsyncStorage.removeItem("__firebase_test__");
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      async _set(key: string, value: unknown) {
+        await AsyncStorage.setItem(key, JSON.stringify(value));
+      },
+      async _get(key: string) {
+        const raw = await AsyncStorage.getItem(key);
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch { return null; }
+      },
+      async _remove(key: string) {
+        await AsyncStorage.removeItem(key);
+      },
+      _addListener(_key: string, _listener: unknown) {},
+      _removeListener(_key: string, _listener: unknown) {},
+    };
 
 // initializeAuth throws if called again during hot reload; fall back to getAuth
 let firebaseAuth: ReturnType<typeof getAuth>;
 try {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  firebaseAuth = initializeAuth(app, { persistence: asyncStoragePersistence as any });
+  firebaseAuth = initializeAuth(app, { persistence: persistence as any });
 } catch {
   firebaseAuth = getAuth(app);
 }
