@@ -1,4 +1,5 @@
 import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState, useEffect } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
@@ -113,10 +114,16 @@ export default function MatchesScreen() {
               style={styles.card}
               onPress={() => router.push(`/profile/${item.profile.id}`)}
             >
-              <Image
-                source={{ uri: item.profile.photoUrl ?? `https://i.pravatar.cc/300?u=${item.profile.id}` }}
-                style={styles.photo}
-              />
+              {item.profile.photoUrl ? (
+                <Image
+                  source={{ uri: item.profile.photoUrl }}
+                  style={styles.photo}
+                />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <FontAwesome name="user" size={38} color="#bdc3ca" style={{ marginTop: 8 }} />
+                </View>
+              )}
               <View style={styles.cardBody}>
                 <Text style={styles.cardName}>
                   {item.profile.firstName}{item.profile.age ? `, ${item.profile.age}` : ""}
@@ -170,6 +177,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: "#e5e7eb" },
+  photoPlaceholder: { width: 56, height: 56, borderRadius: 10, backgroundColor: "#e5e7eb", alignItems: "center", justifyContent: "center" },
   cardBody: { flex: 1, gap: 2 },
   cardName:    { fontSize: 16, fontWeight: "700", color: "#111" },
   cardProgram: { fontSize: 12, color: PURPLE, fontWeight: "500" },

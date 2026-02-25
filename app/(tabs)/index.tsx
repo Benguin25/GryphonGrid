@@ -12,6 +12,7 @@ import {
   UIManager,
   RefreshControl,
 } from "react-native";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState, useMemo, useEffect } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile, LeaseDuration } from "../../lib/types";
@@ -50,10 +51,13 @@ function matchColor(score: number) {
 function ProfileCard({ item, score, showScore }: { item: Profile; score?: number; showScore: boolean }) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/profile/${item.id}`)}>
-      <Image
-        source={{ uri: item.photoUrl ?? `https://i.pravatar.cc/300?u=${item.id}` }}
-        style={styles.photo}
-      />
+      {item.photoUrl ? (
+        <Image source={{ uri: item.photoUrl }} style={styles.photo} />
+      ) : (
+        <View style={styles.photoPlaceholder}>
+          <FontAwesome name="user" size={38} color="#bdc3ca" style={{ marginTop: 8 }} />
+        </View>
+      )}
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
           <Text style={styles.name} numberOfLines={1}>
@@ -524,6 +528,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   photo: { width: 80, height: 80, borderRadius: 12, backgroundColor: "#e5e7eb" },
+  photoPlaceholder: { width: 80, height: 80, borderRadius: 12, backgroundColor: "#e5e7eb", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   cardBody: { flex: 1, gap: 4 },
   cardHeader: {
     flexDirection: "row",
