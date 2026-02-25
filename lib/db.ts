@@ -16,10 +16,45 @@ import {
   doc, getDoc, setDoc, updateDoc,
   collection, getDocs, query, where, onSnapshot,
 } from "firebase/firestore";
+import { Platform } from "react-native";
 import { db } from "./firebase";
 import { Profile, RoommateRequest } from "./types";
 
+const CLOUDINARY_CLOUD = "docmtzxiv";
+const CLOUDINARY_PRESET = "gryphongrid_profiles";
+
 // ── Profile ───────────────────────────────────────────────────────────────────
+
+/**
+ * Upload a profile photo (local file URI or blob URL) to Cloudinary
+ * and return a persistent public download URL.
+ */
+export async function uploadProfilePhoto(uid: string, localUri: string): Promise<string> {
+  const formData = new FormData();
+
+  if (Platform.OS === "web") {
+    // On web, localUri is a blob URL — fetch it into a real Blob first
+    const res = await fetch(localUri);
+    const blob = await res.blob();
+    formData.append("file", blob, `profile_${uid}.jpg`);
+  } else {
+    // On native, React Native FormData accepts { uri, type, name }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    formData.append("file", { uri: localUri, type: "image/jpeg", name: `profile_${uid}.jpg` } as any);
+  }
+
+  formData.append("upload_preset", CLOUDINARY_PRESET);
+  // Use uid as the public_id so re-uploads overwrite the same asset
+  formData.append("public_id", `gryphongrid/profile-photos/${uid}`);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
+    { method: "POST", body: formData },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message ?? "Cloudinary upload failed");
+  return data.secure_url as string;
+}
 
 /** Persist the user's profile to Firestore (merges so other fields are kept). */
 export async function saveProfile(uid: string, profile: Profile): Promise<void> {

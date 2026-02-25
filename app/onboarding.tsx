@@ -19,7 +19,7 @@ import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
 import type {} from "../context/AuthContext";
-import { saveProfile, saveOnboarded } from "../lib/db";
+import { saveProfile, saveOnboarded, uploadProfilePhoto } from "../lib/db";
 import {
   Profile,
   SleepSchedule,
@@ -279,21 +279,43 @@ function guestsFrom(a?: string): GuestFrequency {
 
 // ── Onboarding photo picker ───────────────────────────────────────────────────
 function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
+  const { user } = useAuth();
+  const [uploading, setUploading] = useState(false);
+
   async function pick(useCamera: boolean) {
-    const perm = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") {
-      Alert.alert("Permission required", useCamera ? "Camera access is needed." : "Photo library access is needed.");
-      return;
+    if (Platform.OS !== "web") {
+      const perm = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== "granted") {
+        Alert.alert("Permission required", useCamera ? "Camera access is needed." : "Photo library access is needed.");
+        return;
+      }
     }
     const result = useCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
-    if (!result.canceled && result.assets.length > 0) onChange(result.assets[0].uri);
+    if (!result.canceled && result.assets.length > 0) {
+      const localUri = result.assets[0].uri;
+      try {
+        setUploading(true);
+        const downloadUrl = await uploadProfilePhoto(user?.uid ?? "anon", localUri);
+        onChange(downloadUrl);
+      } catch (e) {
+        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+        console.error("[OnboardingPhotoPicker] upload error:", e);
+      } finally {
+        setUploading(false);
+      }
+    }
   }
 
   function prompt() {
+    // On web, camera isn't available — go straight to library picker
+    if (Platform.OS === "web") {
+      pick(false);
+      return;
+    }
     Alert.alert("Profile Photo", "Choose a source", [
       { text: "Camera", onPress: () => pick(true) },
       { text: "Photo Library", onPress: () => pick(false) },
@@ -303,7 +325,7 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
 
   return (
     <View style={obPhotoStyles.wrap}>
-      <Pressable onPress={prompt} style={{ position: "relative" }}>
+      <Pressable onPress={uploading ? undefined : prompt} style={{ position: "relative" }}>
         {value ? (
           <Image source={{ uri: value }} style={obPhotoStyles.avatar} />
         ) : (
@@ -312,12 +334,20 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
             <Text style={obPhotoStyles.hint}>Add photo</Text>
           </View>
         )}
-        <View style={obPhotoStyles.badge}>
-          <Text style={obPhotoStyles.badgeText}>✎</Text>
-        </View>
+        {uploading ? (
+          <View style={[obPhotoStyles.badge, { backgroundColor: "#9ca3af" }]}>
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        ) : (
+          <View style={obPhotoStyles.badge}>
+            <Text style={obPhotoStyles.badgeText}>✎</Text>
+          </View>
+        )}
       </Pressable>
-      <Text style={obPhotoStyles.caption}>Profile photo{value ? "" : " (optional)"}</Text>
-      {!!value && (
+      <Text style={obPhotoStyles.caption}>
+        {uploading ? "Uploading…" : `Profile photo${value ? "" : " (optional)"}`}
+      </Text>
+      {!!value && !uploading && (
         <Pressable onPress={() => onChange("")}>
           <Text style={obPhotoStyles.remove}>Remove</Text>
         </Pressable>

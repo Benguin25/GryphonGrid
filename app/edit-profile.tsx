@@ -10,12 +10,14 @@ import {
   FlatList,
   Image,
   Alert,
+  Platform,
+  ActivityIndicator,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loadProfile, saveProfile } from "../lib/db";
+import { loadProfile, saveProfile, uploadProfilePhoto } from "../lib/db";
 import {
   Profile,
   SleepSchedule,
@@ -218,17 +220,21 @@ function ScalePicker({
 }
 
 // ── Profile photo picker ──────────────────────────────────────────────────────
-function PhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
+function PhotoPicker({ uid, value, onChange }: { uid: string; value: string; onChange: (uri: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
   async function pick(useCamera: boolean) {
-    const perm = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") {
-      Alert.alert(
-        "Permission required",
-        useCamera ? "Camera access is needed." : "Photo library access is needed.",
-      );
-      return;
+    if (Platform.OS !== "web") {
+      const perm = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== "granted") {
+        Alert.alert(
+          "Permission required",
+          useCamera ? "Camera access is needed." : "Photo library access is needed.",
+        );
+        return;
+      }
     }
     const result = useCamera
       ? await ImagePicker.launchCameraAsync({
@@ -244,11 +250,26 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (uri: strin
           quality: 0.7,
         });
     if (!result.canceled && result.assets.length > 0) {
-      onChange(result.assets[0].uri);
+      const localUri = result.assets[0].uri;
+      try {
+        setUploading(true);
+        const downloadUrl = await uploadProfilePhoto(uid, localUri);
+        onChange(downloadUrl);
+      } catch (e) {
+        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+        console.error("[PhotoPicker] upload error:", e);
+      } finally {
+        setUploading(false);
+      }
     }
   }
 
   function prompt() {
+    // On web, camera isn't available — go straight to library picker
+    if (Platform.OS === "web") {
+      pick(false);
+      return;
+    }
     Alert.alert("Profile Photo", "Choose a source", [
       { text: "Camera", onPress: () => pick(true) },
       { text: "Photo Library", onPress: () => pick(false) },
@@ -258,7 +279,7 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (uri: strin
 
   return (
     <View style={[styles.fieldGroup, { alignItems: "center" }]}>
-      <Pressable onPress={prompt} style={{ position: "relative" }}>
+      <Pressable onPress={uploading ? undefined : prompt} style={{ position: "relative" }}>
         {value ? (
           <Image source={{ uri: value }} style={photoPickerStyles.avatar} />
         ) : (
@@ -267,15 +288,22 @@ function PhotoPicker({ value, onChange }: { value: string; onChange: (uri: strin
             <Text style={photoPickerStyles.placeholderSub}>Add photo</Text>
           </View>
         )}
-        <View style={photoPickerStyles.badge}>
-          <Text style={photoPickerStyles.badgeText}>✎</Text>
-        </View>
+        {uploading ? (
+          <View style={[photoPickerStyles.badge, { backgroundColor: "#9ca3af" }]}>
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        ) : (
+          <View style={photoPickerStyles.badge}>
+            <Text style={photoPickerStyles.badgeText}>✎</Text>
+          </View>
+        )}
       </Pressable>
-      {!!value && (
+      {!!value && !uploading && (
         <Pressable onPress={() => onChange("")} style={{ marginTop: 8 }}>
           <Text style={photoPickerStyles.remove}>Remove photo</Text>
         </Pressable>
       )}
+      {uploading && <Text style={{ marginTop: 8, color: "#9ca3af", fontSize: 12 }}>Uploading…</Text>}
     </View>
   );
 }
@@ -430,7 +458,7 @@ export default function EditProfileScreen() {
         />
       </View>
 
-      <PhotoPicker value={profile.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
+      <PhotoPicker uid={user?.uid ?? "me"} value={profile.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>
