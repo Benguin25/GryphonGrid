@@ -255,9 +255,16 @@ function PhotoPicker({ uid, value, onChange }: { uid: string; value: string; onC
         setUploading(true);
         const downloadUrl = await uploadProfilePhoto(uid, localUri);
         onChange(downloadUrl);
-      } catch (e) {
-        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
         console.error("[PhotoPicker] upload error:", e);
+        // Alert.alert doesn't render on web — fall back to window.alert
+        if (Platform.OS === "web") {
+          // eslint-disable-next-line no-alert
+          window.alert(`Photo upload failed: ${msg}`);
+        } else {
+          Alert.alert("Upload failed", msg);
+        }
       } finally {
         setUploading(false);
       }

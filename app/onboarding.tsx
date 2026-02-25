@@ -301,9 +301,15 @@ function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (
         setUploading(true);
         const downloadUrl = await uploadProfilePhoto(user?.uid ?? "anon", localUri);
         onChange(downloadUrl);
-      } catch (e) {
-        Alert.alert("Upload failed", "Could not upload photo. Please try again.");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Unknown error";
         console.error("[OnboardingPhotoPicker] upload error:", e);
+        if (Platform.OS === "web") {
+          // eslint-disable-next-line no-alert
+          window.alert(`Photo upload failed: ${msg}`);
+        } else {
+          Alert.alert("Upload failed", msg);
+        }
       } finally {
         setUploading(false);
       }

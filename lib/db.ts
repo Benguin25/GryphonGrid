@@ -44,15 +44,21 @@ export async function uploadProfilePhoto(uid: string, localUri: string): Promise
   }
 
   formData.append("upload_preset", CLOUDINARY_PRESET);
-  // Use uid as the public_id so re-uploads overwrite the same asset
-  formData.append("public_id", `gryphongrid/profile-photos/${uid}`);
+  // Note: public_id is intentionally omitted — unsigned presets reject custom
+  // public IDs by default. Each upload gets a unique Cloudinary-generated ID;
+  // the new URL is saved into Firestore so the old asset is simply abandoned.
 
   const res = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`,
     { method: "POST", body: formData },
   );
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message ?? "Cloudinary upload failed");
+  if (!res.ok) {
+    const msg = data.error?.message ?? "Cloudinary upload failed";
+    console.error("[uploadProfilePhoto] Cloudinary error:", data);
+    throw new Error(msg);
+  }
+  console.log("[uploadProfilePhoto] success:", data.secure_url);
   return data.secure_url as string;
 }
 
