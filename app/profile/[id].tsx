@@ -77,7 +77,7 @@ const FALLBACK_ME: Profile = {
 };
 
 export default function ProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, pendingDirection } = useLocalSearchParams<{ id: string, pendingDirection?: string }>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
@@ -118,11 +118,25 @@ export default function ProfileScreen() {
   const score = computeMatch(me, profile);
 
   // Show the roommate request button if this is not the current user's own profile
-  const showRoommateButton = user && profile.id !== user.uid;
+
+  const showRoommateButton = user && profile.id !== user.uid && !pendingDirection;
+
+  // Show accept/decline if this is a pending received request
+  const showAcceptDecline = pendingDirection === 'received';
 
   function handleRoommateRequest() {
     // Placeholder: replace with actual request logic
     alert('Roommate request sent!');
+  }
+
+  function handleAccept() {
+    // Placeholder: replace with actual accept logic
+    alert('Request accepted!');
+  }
+
+  function handleDecline() {
+    // Placeholder: replace with actual decline logic
+    alert('Request declined.');
   }
 
   return (
@@ -240,6 +254,18 @@ export default function ProfileScreen() {
           <Text style={styles.roommateBtnText}>Request as Roommate</Text>
         </Pressable>
       )}
+
+      {/* Accept/Decline Buttons for Pending Received Requests */}
+      {showAcceptDecline && (
+        <View style={styles.acceptDeclineRow}>
+          <Pressable style={styles.acceptBtn} onPress={handleAccept}>
+            <Text style={styles.acceptBtnText}>Accept</Text>
+          </Pressable>
+          <Pressable style={styles.declineBtn} onPress={handleDecline}>
+            <Text style={styles.declineBtnText}>Decline</Text>
+          </Pressable>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -263,26 +289,71 @@ const bar = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-    roommateBtn: {
-      marginTop: 16,
-      marginBottom: 16,
-      backgroundColor: '#16a34a',
-      borderRadius: 8,
-      paddingVertical: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    roommateBtnText: {
-      color: '#fff',
-      fontWeight: '700',
-      fontSize: 16,
-      letterSpacing: 0.5,
-    },
+  roommateBtn: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: '#16a34a',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  roommateBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  acceptDeclineRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  acceptBtn: {
+    flex: 1,
+    backgroundColor: '#16a34a',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  acceptBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  declineBtn: {
+    flex: 1,
+    backgroundColor: '#dc2626',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  declineBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
   container:  { flex: 1, backgroundColor: "#f5f5f7" },
   content:    { paddingHorizontal: 20, paddingTop: 0 },
   centered:   { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f7" },

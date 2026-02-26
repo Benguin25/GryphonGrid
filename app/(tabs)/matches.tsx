@@ -112,7 +112,16 @@ export default function MatchesScreen() {
           return (
             <Pressable
               style={styles.card}
-              onPress={() => router.push(`/profile/${item.profile.id}`)}
+              onPress={() => {
+                if (item.kind === 'pending') {
+                  router.push({
+                    pathname: `/profile/${item.profile.id}`,
+                    params: { pendingDirection: item.direction },
+                  });
+                } else {
+                  router.push(`/profile/${item.profile.id}`);
+                }
+              }}
             >
               {item.profile.photoUrl ? (
                 <Image
