@@ -117,6 +117,14 @@ export default function ProfileScreen() {
 
   const score = computeMatch(me, profile);
 
+  // Show the roommate request button if this is not the current user's own profile
+  const showRoommateButton = user && profile.id !== user.uid;
+
+  function handleRoommateRequest() {
+    // Placeholder: replace with actual request logic
+    alert('Roommate request sent!');
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -226,6 +234,12 @@ export default function ProfileScreen() {
           <InfoRow icon="📸" text={`@${profile.instagramHandle}`} />
         </Section>
       ) : null}
+      {/* Roommate Request Button */}
+      {showRoommateButton && (
+        <Pressable style={styles.roommateBtn} onPress={handleRoommateRequest}>
+          <Text style={styles.roommateBtnText}>Request as Roommate</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -249,6 +263,26 @@ const bar = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+    roommateBtn: {
+      marginTop: 16,
+      marginBottom: 16,
+      backgroundColor: '#16a34a',
+      borderRadius: 8,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.08,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    roommateBtnText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: 16,
+      letterSpacing: 0.5,
+    },
   container:  { flex: 1, backgroundColor: "#f5f5f7" },
   content:    { paddingHorizontal: 20, paddingTop: 0 },
   centered:   { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f7" },
