@@ -65,7 +65,11 @@ export async function uploadProfilePhoto(uid: string, localUri: string): Promise
 /** Persist the user's profile to Firestore (merges so other fields are kept). */
 export async function saveProfile(uid: string, profile: Profile): Promise<void> {
   console.log("[db] saveProfile → uid:", uid, "projectId:", (db as any)._databaseId?.projectId);
-  await setDoc(doc(db, "users", uid), profile, { merge: true });
+  // Firestore rejects undefined values – strip them before saving
+  const clean = Object.fromEntries(
+    Object.entries(profile).filter(([, v]) => v !== undefined)
+  );
+  await setDoc(doc(db, "users", uid), clean, { merge: true });
   console.log("[db] saveProfile ✓ done");
 }
 
