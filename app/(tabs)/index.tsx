@@ -207,13 +207,14 @@ const LEASE_OPTIONS: { value: LeaseDuration | "any"; label: string }[] = [
   { value: "indefinite", label: "Indefinite" },
 ];
 
-type SortKey = "default" | "match" | "age-asc" | "age-desc" | "name";
+type SortKey = "default" | "match" | "age-asc" | "age-desc" | "name" | "hobbies";
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "default", label: "Default" },
   { value: "match", label: "Match %" },
   { value: "name", label: "Name" },
   { value: "age-asc", label: "Age ↑" },
   { value: "age-desc", label: "Age ↓" },
+  { value: "hobbies", label: "Shared Hobbies" },
 ];
 
 const FALLBACK_ME: Profile = {
@@ -286,6 +287,12 @@ export default function DiscoverScreen() {
         case "name":     return a.profile.firstName.localeCompare(b.profile.firstName);
         case "age-asc":  return (a.profile.age ?? 99) - (b.profile.age ?? 99);
         case "age-desc": return (b.profile.age ?? 0) - (a.profile.age ?? 0);
+        case "hobbies":  {
+          const myHobbies = new Set(me.hobbies ?? []);
+          const aShared = (a.profile.hobbies ?? []).filter((h) => myHobbies.has(h)).length;
+          const bShared = (b.profile.hobbies ?? []).filter((h) => myHobbies.has(h)).length;
+          return bShared - aShared;
+        }
         default:         return 0;
       }
     });

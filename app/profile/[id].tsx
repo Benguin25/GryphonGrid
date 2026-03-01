@@ -6,15 +6,17 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
+  Alert,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loadProfile } from "../../lib/db";
+import { loadProfile, unmatchUsers } from "../../lib/db";
 import { computeMatch } from "../../lib/mock";
-import { Profile } from "../../lib/types";
+import { Profile, RoommateRequest } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
+import { useRequests } from "../../context/RequestContext";
 
 const RED = "#CC0000";
 
@@ -79,22 +81,30 @@ const FALLBACK_ME: Profile = {
 export default function ProfileScreen() {
   const { id, pendingDirection } = useLocalSearchParams<{ id: string, pendingDirection?: string }>();
   const { user } = useAuth();
+  const { sendRequest, getRelationship, respondRequest } = useRequests();
   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
   const [loading, setLoading] = useState(true);
+  const [relationship, setRelationship] = useState<RoommateRequest | null>(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [respondingRequest, setRespondingRequest] = useState(false);
+  const [unmatching, setUnmatching] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     Promise.all([
       loadProfile(id),
       user ? loadProfile(user.uid) : Promise.resolve(null),
-    ]).then(([p, myP]) => {
+      user ? getRelationship(id) : Promise.resolve(null),
+    ]).then(([p, myP, rel]) => {
       setProfile(p);
       if (myP) setMe(myP);
+      setRelationship(rel);
     }).finally(() => setLoading(false));
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -117,26 +127,97 @@ export default function ProfileScreen() {
 
   const score = computeMatch(me, profile);
 
-  // Show the roommate request button if this is not the current user's own profile
+  // Determine relationship state
+  const isOwnProfile  = user && profile.id === user.uid;
+  const isMatched     = relationship?.status === "accepted";
+  const isPending     = relationship?.status === "pending";
+  const isOutgoing    = isPending && relationship?.fromUid === user?.uid;
+  const isIncoming    = isPending && relationship?.toUid   === user?.uid;
 
-  const showRoommateButton = user && profile.id !== user.uid && !pendingDirection;
+  // Determine which action UI to show
+  const showRoommateButton = !isOwnProfile && !isPending && !isMatched;
+  const showPendingBadge   = !isOwnProfile && isOutgoing;
+  const showAcceptDecline  = !isOwnProfile && isIncoming;
+  const showMatchedBadge   = !isOwnProfile && isMatched;
 
-  // Show accept/decline if this is a pending received request
-  const showAcceptDecline = pendingDirection === 'received';
-
-  function handleRoommateRequest() {
-    // Placeholder: replace with actual request logic
-    alert('Roommate request sent!');
+  async function handleRoommateRequest() {
+    if (!user || !id) return;
+    setSendingRequest(true);
+    try {
+      const result = await sendRequest(id);
+      if (result === "sent") {
+        setRequestSent(true);
+        const updated = await getRelationship(id);
+        setRelationship(updated);
+      } else if (result === "already_matched") {
+        Alert.alert("Already Matched", "You are already matched with this person!");
+      } else {
+        setRequestSent(true);
+        const updated = await getRelationship(id);
+        setRelationship(updated);
+      }
+    } finally {
+      setSendingRequest(false);
+    }
   }
 
-  function handleAccept() {
-    // Placeholder: replace with actual accept logic
-    alert('Request accepted!');
+  async function handleAccept() {
+    if (!relationship) return;
+    setRespondingRequest(true);
+    try {
+      await respondRequest(relationship.id, "accepted");
+      const updated = await getRelationship(id);
+      setRelationship(updated);
+    } finally {
+      setRespondingRequest(false);
+    }
   }
 
-  function handleDecline() {
-    // Placeholder: replace with actual decline logic
-    alert('Request declined.');
+  async function handleDecline() {
+    if (!relationship) return;
+    Alert.alert("Decline Request", "Are you sure you want to decline this request?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Decline", style: "destructive",
+        onPress: async () => {
+          setRespondingRequest(true);
+          try {
+            await respondRequest(relationship.id, "declined");
+            const updated = await getRelationship(id);
+            setRelationship(updated);
+          } finally {
+            setRespondingRequest(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handleUnmatch() {
+    if (!user || !profile) return;
+    Alert.alert(
+      "Unmatch",
+      `Are you sure you want to unmatch with ${profile.firstName}? This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unmatch",
+          style: "destructive",
+          onPress: async () => {
+            setUnmatching(true);
+            try {
+              await unmatchUsers(user.uid, profile.id);
+              const updated = await getRelationship(id);
+              setRelationship(updated);
+            } catch {
+              Alert.alert("Error", "Could not unmatch. Please try again.");
+            } finally {
+              setUnmatching(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -242,26 +323,101 @@ export default function ProfileScreen() {
         <InfoRow icon="✅" text={`Open to pets: ${label(profile.openToPets)}`} />
       </Section>
 
+      {/* Hobbies */}
+      {profile.hobbies && profile.hobbies.length > 0 && (
+        <Section title="Hobbies">
+          <View style={styles.hobbyChips}>
+            {profile.hobbies.map((h) => (
+              <View key={h} style={styles.hobbyChip}>
+                <Text style={styles.hobbyChipText}>{h}</Text>
+              </View>
+            ))}
+          </View>
+        </Section>
+      )}
+
+      {/* Deal Breakers */}
+      {profile.dealBreakers && profile.dealBreakers.length > 0 && (
+        <Section title="Deal Breakers">
+          <View style={styles.hobbyChips}>
+            {profile.dealBreakers.map((d) => (
+              <View key={d} style={styles.dealBreakerChip}>
+                <Text style={styles.dealBreakerChipText}>{d}</Text>
+              </View>
+            ))}
+          </View>
+        </Section>
+      )}
+
       {/* Instagram (only shown post-match) */}
-      {profile.instagramHandle ? (
+      {isMatched && profile.instagramHandle ? (
         <Section title="Contact">
           <InfoRow icon="📸" text={`@${profile.instagramHandle}`} />
         </Section>
       ) : null}
-      {/* Roommate Request Button */}
+
+      {/* Action buttons */}
       {showRoommateButton && (
-        <Pressable style={styles.roommateBtn} onPress={handleRoommateRequest}>
-          <Text style={styles.roommateBtnText}>Request as Roommate</Text>
-        </Pressable>
+        requestSent ? (
+          <View style={styles.requestSentBanner}>
+            <Text style={styles.requestSentText}>✅ Roommate request sent!</Text>
+            <Text style={styles.requestSentSub}>They'll see your request in their matches.</Text>
+          </View>
+        ) : (
+          <Pressable
+            style={[styles.roommateBtn, sendingRequest && styles.btnDisabled]}
+            onPress={handleRoommateRequest}
+            disabled={sendingRequest}
+          >
+            {sendingRequest
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.roommateBtnText}>🏠 Request as Roommate</Text>
+            }
+          </Pressable>
+        )
+      )}
+
+      {showPendingBadge && (
+        <View style={styles.pendingBanner}>
+          <Text style={styles.pendingBannerText}>⏳ Request Pending</Text>
+          <Text style={styles.pendingBannerSub}>Waiting for them to respond.</Text>
+        </View>
+      )}
+
+      {showMatchedBadge && (
+        <View style={styles.matchedBanner}>
+          <Text style={styles.matchedBannerText}>🎉 You're matched!</Text>
+          <Pressable
+            style={[styles.unmatchBtn, unmatching && styles.btnDisabled]}
+            onPress={handleUnmatch}
+            disabled={unmatching}
+          >
+            {unmatching
+              ? <ActivityIndicator color="#dc2626" size="small" />
+              : <Text style={styles.unmatchBtnText}>Unmatch</Text>
+            }
+          </Pressable>
+        </View>
       )}
 
       {/* Accept/Decline Buttons for Pending Received Requests */}
       {showAcceptDecline && (
         <View style={styles.acceptDeclineRow}>
-          <Pressable style={styles.acceptBtn} onPress={handleAccept}>
-            <Text style={styles.acceptBtnText}>Accept</Text>
+          <Pressable
+            style={[styles.acceptBtn, respondingRequest && styles.btnDisabled]}
+            onPress={handleAccept}
+            disabled={respondingRequest}
+          >
+            {respondingRequest
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.acceptBtnText}>Accept 🎉</Text>
+            }
           </Pressable>
-          <Pressable style={styles.declineBtn} onPress={handleDecline}>
+          <Pressable
+            style={[styles.declineBtn, respondingRequest && styles.btnDisabled]}
+            onPress={handleDecline}
+            disabled={respondingRequest}
+          >
             <Text style={styles.declineBtnText}>Decline</Text>
           </Pressable>
         </View>
@@ -309,6 +465,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     letterSpacing: 0.5,
   },
+  btnDisabled: { opacity: 0.5 },
+  requestSentBanner: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  requestSentText: { fontSize: 16, fontWeight: '700', color: '#16a34a' },
+  requestSentSub: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+  pendingBanner: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  pendingBannerText: { fontSize: 16, fontWeight: '700', color: '#b45309' },
+  pendingBannerSub: { fontSize: 12, color: '#6b7280', marginTop: 4 },
+  matchedBanner: {
+    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#86efac',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 10,
+  },
+  matchedBannerText: { fontSize: 16, fontWeight: '700', color: '#16a34a' },
+  unmatchBtn: {
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 7,
+    backgroundColor: '#fff',
+  },
+  unmatchBtnText: { fontSize: 13, fontWeight: '700', color: '#dc2626' },
+  hobbyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  hobbyChip: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  hobbyChipText: { fontSize: 12, color: '#4338ca', fontWeight: '600' },
+  dealBreakerChip: {
+    backgroundColor: '#FFF1F2',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+  },
+  dealBreakerChipText: { fontSize: 12, color: '#be123c', fontWeight: '600' },
   acceptDeclineRow: {
     flexDirection: 'row',
     gap: 12,

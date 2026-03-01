@@ -13,11 +13,12 @@
  */
 
 import {
-  doc, getDoc, setDoc, updateDoc,
+  doc, getDoc, setDoc, updateDoc, deleteDoc,
   collection, getDocs, query, where, onSnapshot,
 } from "firebase/firestore";
+import { deleteUser } from "firebase/auth";
 import { Platform } from "react-native";
-import { db } from "./firebase";
+import { db, firebaseAuth } from "./firebase";
 import { Profile, RoommateRequest } from "./types";
 
 const CLOUDINARY_CLOUD = "docmtzxiv";
@@ -206,6 +207,40 @@ export async function loadPendingRequests(
   ]);
 
   return results;
+}
+
+/**
+ * Unmatch two users — marks the accepted request as "declined".
+ * Works regardless of which user initiated the original request.
+ */
+export async function unmatchUsers(uid1: string, uid2: string): Promise<void> {
+  const [s1, s2] = await Promise.all([
+    getDoc(doc(db, "requests", `${uid1}_${uid2}`)),
+    getDoc(doc(db, "requests", `${uid2}_${uid1}`)),
+  ]);
+  if (s1.exists()) await updateDoc(doc(db, "requests", `${uid1}_${uid2}`), { status: "declined" });
+  if (s2.exists()) await updateDoc(doc(db, "requests", `${uid2}_${uid1}`), { status: "declined" });
+}
+
+/**
+ * Permanently delete a user account:
+ *  1. Deletes all sent/received request documents.
+ *  2. Deletes the Firestore user document.
+ *  3. Deletes the Firebase Auth account.
+ */
+export async function deleteAccount(uid: string): Promise<void> {
+  const [sentSnap, receivedSnap] = await Promise.all([
+    getDocs(query(collection(db, "requests"), where("fromUid", "==", uid))),
+    getDocs(query(collection(db, "requests"), where("toUid",   "==", uid))),
+  ]);
+  await Promise.all([
+    ...sentSnap.docs.map((d) => deleteDoc(d.ref)),
+    ...receivedSnap.docs.map((d) => deleteDoc(d.ref)),
+  ]);
+  await deleteDoc(doc(db, "users", uid));
+  if (firebaseAuth.currentUser) {
+    await deleteUser(firebaseAuth.currentUser);
+  }
 }
 
 /**

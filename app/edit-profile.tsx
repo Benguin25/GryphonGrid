@@ -33,6 +33,38 @@ import { useAuth } from "../context/AuthContext";
 
 const RED = "#CC0000";
 
+const HOBBIES_LIST: string[] = [
+  "Running", "Cycling", "Yoga", "Gym / Weightlifting", "Swimming",
+  "Rock Climbing", "Hiking", "Basketball", "Soccer", "Volleyball",
+  "Painting", "Photography", "Drawing", "Playing Music", "Singing",
+  "Dancing", "Writing", "Filmmaking", "Pottery", "Cooking",
+  "Baking", "Gaming", "Board Games", "Reading", "Travel",
+  "Volunteering", "Coffee Enthusiast", "Wine / Beer Tasting",
+  "Camping", "Skiing / Snowboarding", "Fishing", "Birdwatching",
+  "Gardening", "Skateboarding", "Coding", "Chess", "Podcasts",
+  "Meditation", "Language Learning", "Investing / Finance",
+];
+
+const DEAL_BREAKERS_LIST: string[] = [
+  "No smoking indoors",
+  "No recreational drugs",
+  "Quiet after midnight",
+  "No frequent overnight guests",
+  "Pet-free required",
+  "Equal chore sharing",
+  "No parties at home",
+  "Respect shared spaces",
+  "Dishes done within 24 hr",
+  "Strict rent deadlines",
+  "24hr guest notice required",
+  "No late-night cooking",
+  "Separate fridge space",
+  "Study-quiet hours",
+  "No loud music",
+];
+
+const MAX_HOBBIES = 5;
+
 // ── Calendar date picker (pure React Native, no native modules) ───────────────
 const CAL_MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const CAL_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -734,6 +766,8 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#CC0000", borderColor: "#CC0000" },
   chipText: { fontSize: 13, color: "#374151" },
   chipTextActive: { color: "#fff", fontWeight: "600" },
+  chipDisabled: { opacity: 0.4 },
+  chipDealBreaker: { backgroundColor: "#be123c", borderColor: "#be123c" },
 
   quizNotice: {
     backgroundColor: "#FFF0F0",

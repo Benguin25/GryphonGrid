@@ -33,7 +33,39 @@ import {
 } from "../lib/types";
 
 const RED = "#CC0000";
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+const HOBBIES_LIST: string[] = [
+  "Running", "Cycling", "Yoga", "Gym / Weightlifting", "Swimming",
+  "Rock Climbing", "Hiking", "Basketball", "Soccer", "Volleyball",
+  "Painting", "Photography", "Drawing", "Playing Music", "Singing",
+  "Dancing", "Writing", "Filmmaking", "Pottery", "Cooking",
+  "Baking", "Gaming", "Board Games", "Reading", "Travel",
+  "Volunteering", "Coffee Enthusiast", "Wine / Beer Tasting",
+  "Camping", "Skiing / Snowboarding", "Fishing", "Birdwatching",
+  "Gardening", "Skateboarding", "Coding", "Chess", "Podcasts",
+  "Meditation", "Language Learning", "Investing / Finance",
+];
+
+const DEAL_BREAKERS_LIST: string[] = [
+  "No smoking indoors",
+  "No recreational drugs",
+  "Quiet after midnight",
+  "No frequent overnight guests",
+  "Pet-free required",
+  "Equal chore sharing",
+  "No parties at home",
+  "Respect shared spaces",
+  "Dishes done within 24 hr",
+  "Strict rent deadlines",
+  "24hr guest notice required",
+  "No late-night cooking",
+  "Separate fridge space",
+  "Study-quiet hours",
+  "No loud music",
+];
+
+const MAX_HOBBIES = 5;
 
 type StepProps = { p: Profile; set: <K extends keyof Profile>(key: K, val: Profile[K]) => void };
 type QuizAnswer = "A" | "B" | "C" | "D" | undefined;
@@ -762,8 +794,80 @@ function Step3({
   );
 }
 
-// -- Step 4: Review ------------------------------------------------------------
-function Step4({
+// -- Step 4: Hobbies & Deal Breakers -----------------------------------------
+function StepHobbies({ p, set }: StepProps) {
+  const selected = p.hobbies ?? [];
+  const selectedDB = p.dealBreakers ?? [];
+
+  function toggleHobby(h: string) {
+    if (selected.includes(h)) {
+      set("hobbies", selected.filter((x) => x !== h));
+    } else if (selected.length < MAX_HOBBIES) {
+      set("hobbies", [...selected, h]);
+    }
+  }
+
+  function toggleDb(d: string) {
+    if (selectedDB.includes(d)) {
+      set("dealBreakers", selectedDB.filter((x) => x !== d));
+    } else {
+      set("dealBreakers", [...selectedDB, d]);
+    }
+  }
+
+  return (
+    <>
+      <StepHeading
+        title="Hobbies & Deal Breakers"
+        subtitle="Pick up to 5 hobbies and any deal breakers that apply to you."
+      />
+      <View style={styles.field}>
+        <Text style={styles.fieldLabel}>
+          Hobbies{" "}
+          <Text style={styles.charCount}>({selected.length}/{MAX_HOBBIES} selected)</Text>
+        </Text>
+        <View style={styles.chips}>
+          {HOBBIES_LIST.map((h) => {
+            const active   = selected.includes(h);
+            const disabled = !active && selected.length >= MAX_HOBBIES;
+            return (
+              <Pressable
+                key={h}
+                style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled]}
+                onPress={() => !disabled && toggleHobby(h)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{h}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <View style={[styles.field, { marginTop: 8 }]}>
+        <Text style={styles.fieldLabel}>
+          Deal Breakers{" "}
+          <Text style={styles.charCount}>(select all that apply)</Text>
+        </Text>
+        <View style={styles.chips}>
+          {DEAL_BREAKERS_LIST.map((d) => {
+            const active = selectedDB.includes(d);
+            return (
+              <Pressable
+                key={d}
+                style={[styles.chip, active && styles.chipDealBreaker]}
+                onPress={() => toggleDb(d)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{d}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    </>
+  );
+}
+
+// -- Step 5: Review ------------------------------------------------------------
+function Step5({
   p, cleanScore, socialScore, set,
 }: {
   p: Profile;
@@ -793,6 +897,10 @@ function Step4({
         <Text style={styles.reviewValue}>
           {[p.hasDog && "Dog", p.hasCat && "Cat"].filter(Boolean).join(", ") || "None"}
         </Text>
+      </View>
+      <View style={styles.reviewRow}>
+        <Text style={styles.reviewLabel}>Hobbies</Text>
+        <Text style={styles.reviewValue}>{p.hobbies && p.hobbies.length > 0 ? p.hobbies.join(", ") : "None"}</Text>
       </View>
       <View style={styles.reviewRow}>
         <Text style={styles.reviewLabel}>Budget</Text>
@@ -880,6 +988,7 @@ export default function OnboardingScreen() {
     if (step === 0 && !profile.program.trim())   return "Please enter your program.";
     if (step === 2 && cleanAnswers.some((a) => !a))  return "Please answer all 3 questions.";
     if (step === 3 && socialAnswers.some((a) => !a)) return "Please answer all 3 questions.";
+    if (step === 4 && (profile.hobbies ?? []).length === 0) return "Please select at least 1 hobby.";
     return null;
   }
 
@@ -969,7 +1078,8 @@ export default function OnboardingScreen() {
               answers={socialAnswers} setAnswer={setSocialAnswer}
             />
           )}
-          {step === 4 && <Step4 p={profile} cleanScore={cleanScore} socialScore={socialScore} set={set} />}
+          {step === 4 && <StepHobbies p={profile} set={set} />}
+          {step === 5 && <Step5 p={profile} cleanScore={cleanScore} socialScore={socialScore} set={set} />}
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
@@ -1250,6 +1360,8 @@ const styles = StyleSheet.create({
   dotBtnText: { fontSize: 16, fontWeight: "700", color: "#6b7280" },
   dotBtnTextActive: { color: "#fff" },
   dotHint: { fontSize: 11, color: "#9ca3af" },
+  chipDisabled: { opacity: 0.4 },
+  chipDealBreaker: { backgroundColor: '#be123c', borderColor: '#be123c' },
   prefSection: {
     marginTop: 20,
     backgroundColor: "#f9fafb",

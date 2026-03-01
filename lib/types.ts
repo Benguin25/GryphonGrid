@@ -42,6 +42,10 @@ export type Profile = {
 
   // Section 4: Private (only revealed post-match)
   instagramHandle?: string;
+
+  // Section 5: Hobbies & Deal Breakers (visual only for now)
+  hobbies?: string[];
+  dealBreakers?: string[];
 };
 
 export type RequestStatus = "pending" | "accepted" | "declined";

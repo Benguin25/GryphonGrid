@@ -1,11 +1,11 @@
-import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl, Alert } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { loadProfile, loadAcceptedMatches, loadPendingRequests } from "../../lib/db";
+import { loadProfile, loadAcceptedMatches, loadPendingRequests, unmatchUsers } from "../../lib/db";
 
 const RED = "#CC0000";
 
@@ -31,6 +31,7 @@ export default function MatchesScreen() {
   const [pending, setPending] = useState<{ profile: Profile; direction: "sent" | "received" }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [unmatchingId, setUnmatchingId] = useState<string | null>(null);
 
   const fetchData = (isRefresh = false) => {
     if (!user) return;
@@ -52,6 +53,38 @@ export default function MatchesScreen() {
   useEffect(() => {
     fetchData();
   }, [user?.uid]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  function handleUnmatch(otherProfile: Profile) {
+    if (!user) return;
+    Alert.alert(
+      'Unmatch',
+      `Are you sure you want to unmatch with ${otherProfile.firstName}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unmatch',
+          style: 'destructive',
+          onPress: async () => {
+            setUnmatchingId(otherProfile.id);
+            try {
+              await unmatchUsers(user.uid, otherProfile.id);
+              setAccepted((prev) => prev.filter((p) => p.id !== otherProfile.id));
+            } catch {
+              Alert.alert('Error', 'Could not unmatch. Please try again.');
+            } finally {
+              setUnmatchingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   if (loading) {
     return (
@@ -110,53 +143,67 @@ export default function MatchesScreen() {
           const isAccepted = item.kind === "accepted";
           const isSent     = item.kind === "pending" && item.direction === "sent";
           return (
-            <Pressable
-              style={styles.card}
-              onPress={() => {
-                if (item.kind === 'pending') {
-                  router.push({
-                    pathname: `/profile/${item.profile.id}`,
-                    params: { pendingDirection: item.direction },
-                  });
-                } else {
-                  router.push(`/profile/${item.profile.id}`);
-                }
-              }}
-            >
-              {item.profile.photoUrl ? (
-                <Image
-                  source={{ uri: item.profile.photoUrl }}
-                  style={styles.photo}
-                />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <FontAwesome name="user" size={38} color="#bdc3ca" style={{ marginTop: 8 }} />
-                </View>
-              )}
-              <View style={styles.cardBody}>
-                <Text style={styles.cardName}>
-                  {item.profile.firstName}{item.profile.age ? `, ${item.profile.age}` : ""}
-                </Text>
-                <Text style={styles.cardProgram}>{item.profile.program}</Text>
-                {isAccepted && item.profile.instagramHandle ? (
-                  <View style={styles.igRow}>
-                    <Text style={styles.igIcon}>📸</Text>
-                    <Text style={styles.igHandle}>@{item.profile.instagramHandle}</Text>
-                  </View>
+            <View style={styles.card}>
+              <Pressable
+                style={styles.cardTouchable}
+                onPress={() => {
+                  if (item.kind === 'pending') {
+                    router.push({
+                      pathname: `/profile/${item.profile.id}`,
+                      params: { pendingDirection: item.direction },
+                    });
+                  } else {
+                    router.push(`/profile/${item.profile.id}`);
+                  }
+                }}
+              >
+                {item.profile.photoUrl ? (
+                  <Image
+                    source={{ uri: item.profile.photoUrl }}
+                    style={styles.photo}
+                  />
                 ) : (
-                  <Text style={styles.cardBio} numberOfLines={2}>{item.profile.bio}</Text>
+                  <View style={styles.photoPlaceholder}>
+                    <FontAwesome name="user" size={38} color="#bdc3ca" style={{ marginTop: 8 }} />
+                  </View>
                 )}
-              </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardName}>
+                    {item.profile.firstName}{item.profile.age ? `, ${item.profile.age}` : ""}
+                  </Text>
+                  <Text style={styles.cardProgram}>{item.profile.program}</Text>
+                  {isAccepted && item.profile.instagramHandle ? (
+                    <View style={styles.igRow}>
+                      <Text style={styles.igIcon}>📸</Text>
+                      <Text style={styles.igHandle}>@{item.profile.instagramHandle}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.cardBio} numberOfLines={2}>{item.profile.bio}</Text>
+                  )}
+                </View>
+              </Pressable>
               <View style={styles.scoreCol}>
                 <Text style={[styles.score, { color: matchColor(score) }]}>{score}%</Text>
                 <Text style={styles.scoreLabel}>match</Text>
+                {isAccepted && (
+                  <Pressable
+                    onPress={() => handleUnmatch(item.profile)}
+                    style={styles.unmatchBtn}
+                    disabled={unmatchingId === item.profile.id}
+                  >
+                    {unmatchingId === item.profile.id
+                      ? <ActivityIndicator size="small" color="#dc2626" />
+                      : <Text style={styles.unmatchBtnText}>Unmatch</Text>
+                    }
+                  </Pressable>
+                )}
                 {!isAccepted && (
                   <View style={[styles.pendingBadge, isSent ? styles.pendingBadgeSent : styles.pendingBadgeReceived]}>
                     <Text style={styles.pendingBadgeText}>{isSent ? "Sent" : "Incoming"}</Text>
                   </View>
                 )}
               </View>
-            </Pressable>
+            </View>
           );
         }}
       />
@@ -178,12 +225,17 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 3,
+  },
+  cardTouchable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: "#e5e7eb" },
   photoPlaceholder: { width: 56, height: 56, borderRadius: 10, backgroundColor: "#e5e7eb", alignItems: "center", justifyContent: "center" },
@@ -214,6 +266,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pendingBadgeSent:     { backgroundColor: "#FFF0F0" },
-  pendingBadgeReceived: { backgroundColor: "#FFF8E1" }, // UofG Gold tint
+  pendingBadgeReceived: { backgroundColor: "#FFF8E1" },
   pendingBadgeText: { fontSize: 9, fontWeight: "700", color: "#374151" },
+  unmatchBtn: {
+    marginTop: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignItems: 'center',
+    minWidth: 56,
+  },
+  unmatchBtnText: { fontSize: 9, fontWeight: '700', color: '#dc2626' },
 });

@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -108,6 +109,16 @@ function AuthGuard() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f5f5f7' }}>
+        <Text style={{ fontSize: 30, fontWeight: '800', color: '#CC0000', marginBottom: 20 }}>GryphonGrid</Text>
+        <ActivityIndicator color="#CC0000" size="large" />
+      </View>
+    );
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
