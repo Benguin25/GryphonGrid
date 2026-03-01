@@ -218,8 +218,8 @@ export async function unmatchUsers(uid1: string, uid2: string): Promise<void> {
     getDoc(doc(db, "requests", `${uid1}_${uid2}`)),
     getDoc(doc(db, "requests", `${uid2}_${uid1}`)),
   ]);
-  if (s1.exists()) await updateDoc(doc(db, "requests", `${uid1}_${uid2}`), { status: "declined" });
-  if (s2.exists()) await updateDoc(doc(db, "requests", `${uid2}_${uid1}`), { status: "declined" });
+  if (s1.exists()) await deleteDoc(doc(db, "requests", `${uid1}_${uid2}`));
+  if (s2.exists()) await deleteDoc(doc(db, "requests", `${uid2}_${uid1}`));
 }
 
 /**

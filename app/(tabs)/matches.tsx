@@ -1,4 +1,4 @@
-import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl, Alert } from "react-native";
+import { View, Text, Image, Pressable, StyleSheet, ActivityIndicator, SectionList, RefreshControl } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useState, useEffect, useCallback } from "react";
 import { computeMatch } from "../../lib/mock";
@@ -6,6 +6,7 @@ import { Profile } from "../../lib/types";
 import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
 import { loadProfile, loadAcceptedMatches, loadPendingRequests, unmatchUsers } from "../../lib/db";
+import AppDialog from "../../components/AppDialog";
 
 const RED = "#CC0000";
 
@@ -32,6 +33,8 @@ export default function MatchesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unmatchingId, setUnmatchingId] = useState<string | null>(null);
+  const [confirmUnmatchProfile, setConfirmUnmatchProfile] = useState<Profile | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   const fetchData = (isRefresh = false) => {
     if (!user) return;
@@ -62,28 +65,22 @@ export default function MatchesScreen() {
 
   function handleUnmatch(otherProfile: Profile) {
     if (!user) return;
-    Alert.alert(
-      'Unmatch',
-      `Are you sure you want to unmatch with ${otherProfile.firstName}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unmatch',
-          style: 'destructive',
-          onPress: async () => {
-            setUnmatchingId(otherProfile.id);
-            try {
-              await unmatchUsers(user.uid, otherProfile.id);
-              setAccepted((prev) => prev.filter((p) => p.id !== otherProfile.id));
-            } catch {
-              Alert.alert('Error', 'Could not unmatch. Please try again.');
-            } finally {
-              setUnmatchingId(null);
-            }
-          },
-        },
-      ]
-    );
+    setConfirmUnmatchProfile(otherProfile);
+  }
+
+  async function doUnmatch() {
+    if (!user || !confirmUnmatchProfile) return;
+    const target = confirmUnmatchProfile;
+    setConfirmUnmatchProfile(null);
+    setUnmatchingId(target.id);
+    try {
+      await unmatchUsers(user.uid, target.id);
+      setAccepted((prev) => prev.filter((p) => p.id !== target.id));
+    } catch {
+      setDialogError("Could not unmatch. Please try again.");
+    } finally {
+      setUnmatchingId(null);
+    }
   }
 
   if (loading) {
@@ -206,6 +203,24 @@ export default function MatchesScreen() {
             </View>
           );
         }}
+      />
+      <AppDialog
+        visible={!!confirmUnmatchProfile}
+        title="Unmatch"
+        message={`Are you sure you want to unmatch with ${confirmUnmatchProfile?.firstName}? This cannot be undone.`}
+        confirmText="Unmatch"
+        cancelText="Cancel"
+        destructive
+        loading={unmatchingId === confirmUnmatchProfile?.id}
+        onConfirm={doUnmatch}
+        onCancel={() => setConfirmUnmatchProfile(null)}
+      />
+      <AppDialog
+        visible={!!dialogError}
+        title="Error"
+        message={dialogError ?? ""}
+        confirmText="OK"
+        onConfirm={() => setDialogError(null)}
       />
     </View>
   );

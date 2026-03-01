@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
-  Alert,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, router } from "expo-router";
@@ -17,6 +16,7 @@ import { computeMatch } from "../../lib/mock";
 import { Profile, RoommateRequest } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
 import { useRequests } from "../../context/RequestContext";
+import AppDialog from "../../components/AppDialog";
 
 const RED = "#CC0000";
 
@@ -92,6 +92,10 @@ export default function ProfileScreen() {
   const [requestSent, setRequestSent] = useState(false);
   const [respondingRequest, setRespondingRequest] = useState(false);
   const [unmatching, setUnmatching] = useState(false);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [showUnmatchDialog, setShowUnmatchDialog] = useState(false);
+  const [showAlreadyMatchedDialog, setShowAlreadyMatchedDialog] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -150,7 +154,7 @@ export default function ProfileScreen() {
         const updated = await getRelationship(id);
         setRelationship(updated);
       } else if (result === "already_matched") {
-        Alert.alert("Already Matched", "You are already matched with this person!");
+        setShowAlreadyMatchedDialog(true);
       } else {
         setRequestSent(true);
         const updated = await getRelationship(id);
@@ -173,51 +177,42 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleDecline() {
+  function handleDecline() {
     if (!relationship) return;
-    Alert.alert("Decline Request", "Are you sure you want to decline this request?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Decline", style: "destructive",
-        onPress: async () => {
-          setRespondingRequest(true);
-          try {
-            await respondRequest(relationship.id, "declined");
-            const updated = await getRelationship(id);
-            setRelationship(updated);
-          } finally {
-            setRespondingRequest(false);
-          }
-        },
-      },
-    ]);
+    setShowDeclineDialog(true);
   }
 
-  async function handleUnmatch() {
+  async function doDecline() {
+    if (!relationship) return;
+    setShowDeclineDialog(false);
+    setRespondingRequest(true);
+    try {
+      await respondRequest(relationship.id, "declined");
+      const updated = await getRelationship(id);
+      setRelationship(updated);
+    } finally {
+      setRespondingRequest(false);
+    }
+  }
+
+  function handleUnmatch() {
     if (!user || !profile) return;
-    Alert.alert(
-      "Unmatch",
-      `Are you sure you want to unmatch with ${profile.firstName}? This cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Unmatch",
-          style: "destructive",
-          onPress: async () => {
-            setUnmatching(true);
-            try {
-              await unmatchUsers(user.uid, profile.id);
-              const updated = await getRelationship(id);
-              setRelationship(updated);
-            } catch {
-              Alert.alert("Error", "Could not unmatch. Please try again.");
-            } finally {
-              setUnmatching(false);
-            }
-          },
-        },
-      ]
-    );
+    setShowUnmatchDialog(true);
+  }
+
+  async function doUnmatch() {
+    if (!user || !profile) return;
+    setShowUnmatchDialog(false);
+    setUnmatching(true);
+    try {
+      await unmatchUsers(user.uid, profile.id);
+      const updated = await getRelationship(id);
+      setRelationship(updated);
+    } catch {
+      setDialogError("Could not unmatch. Please try again.");
+    } finally {
+      setUnmatching(false);
+    }
   }
 
   return (
@@ -422,6 +417,41 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       )}
+      <AppDialog
+        visible={showDeclineDialog}
+        title="Decline Request"
+        message="Are you sure you want to decline this request?"
+        confirmText="Decline"
+        cancelText="Cancel"
+        destructive
+        onConfirm={doDecline}
+        onCancel={() => setShowDeclineDialog(false)}
+      />
+      <AppDialog
+        visible={showUnmatchDialog}
+        title="Unmatch"
+        message={`Are you sure you want to unmatch with ${profile?.firstName ?? "this person"}? This cannot be undone.`}
+        confirmText="Unmatch"
+        cancelText="Cancel"
+        destructive
+        loading={unmatching}
+        onConfirm={doUnmatch}
+        onCancel={() => { if (!unmatching) setShowUnmatchDialog(false); }}
+      />
+      <AppDialog
+        visible={showAlreadyMatchedDialog}
+        title="Already Matched"
+        message="You are already matched with this person!"
+        confirmText="OK"
+        onConfirm={() => setShowAlreadyMatchedDialog(false)}
+      />
+      <AppDialog
+        visible={!!dialogError}
+        title="Error"
+        message={dialogError ?? ""}
+        confirmText="OK"
+        onConfirm={() => setDialogError(null)}
+      />
     </ScrollView>
   );
 }

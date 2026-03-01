@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
-  Alert,
   Linking,
 } from "react-native";
 import { useState, useCallback } from "react";
@@ -17,6 +16,7 @@ import { useAuth } from "../../context/AuthContext";
 import { loadProfile, deleteAccount } from "../../lib/db";
 import { Profile } from "../../lib/types";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import AppDialog from "../../components/AppDialog";
 
 const RED = "#CC0000";
 
@@ -94,6 +94,9 @@ export default function MyProfileTab() {
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [showSettings, setShowSettings] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showEmailError, setShowEmailError] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -104,48 +107,27 @@ export default function MyProfileTab() {
 
   function handleContactSupport() {
     Linking.openURL('mailto:benprobert25@gmail.com?subject=GryphonGrid%20Support').catch(() =>
-      Alert.alert('Could not open email app.')
+      setShowEmailError(true)
     );
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      'Delete Account',
-      'This cannot be undone. All your profile data, matches, and requests will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Forever',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Are you absolutely sure?',
-              'Your account and all associated information will be deleted immediately.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Yes, Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    if (!user?.uid) return;
-                    setDeletingAccount(true);
-                    try {
-                      await deleteAccount(user.uid);
-                      // signOut is not needed — deleteUser also signs out
-                    } catch (e: unknown) {
-                      const msg = e instanceof Error ? e.message : String(e);
-                      Alert.alert('Error', `Could not delete account: ${msg}`);
-                    } finally {
-                      setDeletingAccount(false);
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+    setDeleteStep(1);
+  }
+
+  async function doDeleteAccount() {
+    if (!user?.uid) return;
+    setDeletingAccount(true);
+    setDeleteStep(0);
+    try {
+      await deleteAccount(user.uid);
+      // signOut is not needed — deleteUser also signs out
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDeleteError(msg);
+    } finally {
+      setDeletingAccount(false);
+    }
   }
 
   if (profile === undefined) {
@@ -314,6 +296,41 @@ export default function MyProfileTab() {
           <Text style={styles.signOutBtnText}>Sign out</Text>
         </Pressable>
       </View>
+      <AppDialog
+        visible={deleteStep === 1}
+        title="Delete Account"
+        message="This cannot be undone. All your profile data, matches, and requests will be permanently deleted."
+        confirmText="Delete Forever"
+        cancelText="Cancel"
+        destructive
+        onConfirm={() => setDeleteStep(2)}
+        onCancel={() => setDeleteStep(0)}
+      />
+      <AppDialog
+        visible={deleteStep === 2}
+        title="Are you absolutely sure?"
+        message="Your account and all associated information will be deleted immediately."
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        destructive
+        loading={deletingAccount}
+        onConfirm={doDeleteAccount}
+        onCancel={() => setDeleteStep(0)}
+      />
+      <AppDialog
+        visible={!!deleteError}
+        title="Error"
+        message={deleteError ?? ""}
+        confirmText="OK"
+        onConfirm={() => setDeleteError(null)}
+      />
+      <AppDialog
+        visible={showEmailError}
+        title="Could not open email app"
+        message="Please email us directly at benprobert25@gmail.com"
+        confirmText="OK"
+        onConfirm={() => setShowEmailError(false)}
+      />
     </ScrollView>
   );
 }
