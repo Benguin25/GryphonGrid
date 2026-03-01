@@ -5,7 +5,7 @@ import { computeMatch } from "../../lib/mock";
 import { Profile } from "../../lib/types";
 import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { loadProfile, loadAcceptedMatches, loadPendingRequests, unmatchUsers } from "../../lib/db";
+import { loadProfile, loadAcceptedMatches, loadPendingRequests, respondToRequest } from "../../lib/db";
 import AppDialog from "../../components/AppDialog";
 
 const RED = "#CC0000";
@@ -28,12 +28,12 @@ function matchColor(score: number) {
 export default function MatchesScreen() {
   const { user } = useAuth();
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
-  const [accepted, setAccepted] = useState<Profile[]>([]);
+  const [accepted, setAccepted] = useState<{ profile: Profile; reqId: string }[]>([]);
   const [pending, setPending] = useState<{ profile: Profile; direction: "sent" | "received" }[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unmatchingId, setUnmatchingId] = useState<string | null>(null);
-  const [confirmUnmatchProfile, setConfirmUnmatchProfile] = useState<Profile | null>(null);
+  const [confirmUnmatch, setConfirmUnmatch] = useState<{ profile: Profile; reqId: string } | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
   const fetchData = (isRefresh = false) => {
@@ -63,21 +63,22 @@ export default function MatchesScreen() {
     }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  function handleUnmatch(otherProfile: Profile) {
+  function handleUnmatch(item: { profile: Profile; reqId: string }) {
     if (!user) return;
-    setConfirmUnmatchProfile(otherProfile);
+    setConfirmUnmatch(item);
   }
 
   async function doUnmatch() {
-    if (!user || !confirmUnmatchProfile) return;
-    const target = confirmUnmatchProfile;
-    setConfirmUnmatchProfile(null);
-    setUnmatchingId(target.id);
+    if (!user || !confirmUnmatch) return;
+    const target = confirmUnmatch;
+    setConfirmUnmatch(null);
+    setUnmatchingId(target.profile.id);
     try {
-      await unmatchUsers(user.uid, target.id);
-      setAccepted((prev) => prev.filter((p) => p.id !== target.id));
-    } catch {
-      setDialogError("Could not unmatch. Please try again.");
+      await respondToRequest(target.reqId, "declined");
+      setAccepted((prev) => prev.filter((p) => p.profile.id !== target.profile.id));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDialogError(`Could not unmatch: ${msg}`);
     } finally {
       setUnmatchingId(null);
     }
@@ -92,13 +93,13 @@ export default function MatchesScreen() {
   }
 
   type ListItem =
-    | { kind: "accepted"; profile: Profile }
+    | { kind: "accepted"; profile: Profile; reqId: string }
     | { kind: "pending";  profile: Profile; direction: "sent" | "received" };
 
   const sections = [
     ...(accepted.length > 0 ? [{
-      title: "✅ Matched",
-      data: accepted.map((p): ListItem => ({ kind: "accepted", profile: p })),
+      title: "\u2705 Matched",
+      data: accepted.map((a): ListItem => ({ kind: "accepted", profile: a.profile, reqId: a.reqId })),
     }] : []),
     ...(pending.length > 0 ? [{
       title: "⏳ Pending",
@@ -184,7 +185,7 @@ export default function MatchesScreen() {
                 <Text style={styles.scoreLabel}>match</Text>
                 {isAccepted && (
                   <Pressable
-                    onPress={() => handleUnmatch(item.profile)}
+                    onPress={() => isAccepted && item.kind === "accepted" && handleUnmatch({ profile: item.profile, reqId: item.reqId })}
                     style={styles.unmatchBtn}
                     disabled={unmatchingId === item.profile.id}
                   >
@@ -205,15 +206,15 @@ export default function MatchesScreen() {
         }}
       />
       <AppDialog
-        visible={!!confirmUnmatchProfile}
+        visible={!!confirmUnmatch}
         title="Unmatch"
-        message={`Are you sure you want to unmatch with ${confirmUnmatchProfile?.firstName}? This cannot be undone.`}
+        message={`Are you sure you want to unmatch with ${confirmUnmatch?.profile.firstName}? This cannot be undone.`}
         confirmText="Unmatch"
         cancelText="Cancel"
         destructive
-        loading={unmatchingId === confirmUnmatchProfile?.id}
+        loading={unmatchingId === confirmUnmatch?.profile.id}
         onConfirm={doUnmatch}
-        onCancel={() => setConfirmUnmatchProfile(null)}
+        onCancel={() => setConfirmUnmatch(null)}
       />
       <AppDialog
         visible={!!dialogError}

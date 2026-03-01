@@ -163,20 +163,34 @@ export async function getRequestBetween(
 
 /**
  * Load all accepted matches for a user.
- * Returns the partner profiles (with instagramHandle populated).
+ * Returns the partner profiles with their request document ID.
  */
-export async function loadAcceptedMatches(uid: string): Promise<Profile[]> {
+export async function loadAcceptedMatches(uid: string): Promise<{ profile: Profile; reqId: string }[]> {
   const [q1snap, q2snap] = await Promise.all([
     getDocs(query(collection(db, "requests"), where("fromUid", "==", uid), where("status", "==", "accepted"))),
     getDocs(query(collection(db, "requests"), where("toUid",   "==", uid), where("status", "==", "accepted"))),
   ]);
 
-  const partnerIds = new Set<string>();
-  q1snap.docs.forEach((d) => partnerIds.add((d.data() as RoommateRequest).toUid));
-  q2snap.docs.forEach((d) => partnerIds.add((d.data() as RoommateRequest).fromUid));
+  const entries: { partnerId: string; reqId: string }[] = [
+    ...q1snap.docs.map((d) => ({ partnerId: (d.data() as RoommateRequest).toUid,   reqId: d.id })),
+    ...q2snap.docs.map((d) => ({ partnerId: (d.data() as RoommateRequest).fromUid, reqId: d.id })),
+  ];
 
-  const profiles = await Promise.all([...partnerIds].map((pid) => loadProfile(pid)));
-  return profiles.filter((p): p is Profile => p !== null);
+  // de-dupe by partnerId
+  const seen = new Set<string>();
+  const unique = entries.filter(({ partnerId }) => {
+    if (seen.has(partnerId)) return false;
+    seen.add(partnerId);
+    return true;
+  });
+
+  const results = await Promise.all(
+    unique.map(async ({ partnerId, reqId }) => {
+      const p = await loadProfile(partnerId);
+      return p ? { profile: p, reqId } : null;
+    })
+  );
+  return results.filter((r): r is { profile: Profile; reqId: string } => r !== null);
 }
 
 /**

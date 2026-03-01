@@ -11,7 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loadProfile, unmatchUsers } from "../../lib/db";
+import { loadProfile } from "../../lib/db";
 import { computeMatch } from "../../lib/mock";
 import { Profile, RoommateRequest } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
@@ -201,15 +201,17 @@ export default function ProfileScreen() {
   }
 
   async function doUnmatch() {
-    if (!user || !profile) return;
+    if (!user || !profile || !relationship) return;
     setShowUnmatchDialog(false);
     setUnmatching(true);
     try {
-      await unmatchUsers(user.uid, profile.id);
+      // Use respondRequest with the known relationship ID — same path as decline, which we know works
+      await respondRequest(relationship.id, "declined");
       const updated = await getRelationship(id);
       setRelationship(updated);
-    } catch {
-      setDialogError("Could not unmatch. Please try again.");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDialogError(`Could not unmatch: ${msg}`);
     } finally {
       setUnmatching(false);
     }
