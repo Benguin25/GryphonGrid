@@ -691,6 +691,36 @@ export default function EditProfileScreen() {
         </View>
       </View>
 
+      {/* ── Section 4: Hobbies ───────────────────────────────────────── */}
+      <SectionHeader number="4" title="Hobbies" subtitle={`Pick up to ${MAX_HOBBIES} — shown on your profile.`} />
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>
+          Selected: {(profile.hobbies ?? []).length}/{MAX_HOBBIES}
+        </Text>
+        <View style={styles.hobbyGrid}>
+          {HOBBIES_LIST.map((h) => {
+            const selected = (profile.hobbies ?? []).includes(h);
+            const maxed    = !selected && (profile.hobbies ?? []).length >= MAX_HOBBIES;
+            return (
+              <Pressable
+                key={h}
+                style={[styles.hobbyChip, selected && styles.hobbyChipActive, maxed && styles.hobbyChipDisabled]}
+                onPress={() => {
+                  if (maxed) return;
+                  const current = profile.hobbies ?? [];
+                  set("hobbies", selected ? current.filter((x) => x !== h) : [...current, h]);
+                }}
+              >
+                <Text style={[styles.hobbyChipText, selected && styles.hobbyChipTextActive]}>
+                  {h}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       {/* ── Save button ───────────────────────────────────────────────── */}
       <Pressable style={[styles.saveBtn, saved && styles.saveBtnDone]} onPress={handleSave}>
         <Text style={styles.saveBtnText}>{saved ? "✓ Saved!" : "Save Profile"}</Text>
@@ -885,4 +915,24 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
   },
   dateModalDoneText: { color: RED, fontSize: 16, fontWeight: "700" },
+
+  // Hobbies grid
+  hobbyGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  hobbyChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+  },
+  hobbyChipActive: {
+    backgroundColor: RED,
+    borderColor: RED,
+  },
+  hobbyChipDisabled: {
+    opacity: 0.35,
+  },
+  hobbyChipText: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  hobbyChipTextActive: { color: "#fff", fontWeight: "600" },
 });
