@@ -105,8 +105,10 @@ export async function loadRelatedUids(uid: string): Promise<Set<string>> {
     getDocs(query(collection(db, "requests"), where("toUid",   "==", uid))),
   ]);
   const uids = new Set<string>();
-  s1.docs.forEach((d) => { const r = d.data(); uids.add(r.toUid); });
-  s2.docs.forEach((d) => { const r = d.data(); uids.add(r.fromUid); });
+  // Only exclude pending/accepted — declined means unmatched, so they
+  // should reappear in Discover.
+  s1.docs.forEach((d) => { const r = d.data(); if (r.status !== "declined") uids.add(r.toUid); });
+  s2.docs.forEach((d) => { const r = d.data(); if (r.status !== "declined") uids.add(r.fromUid); });
   return uids;
 }
 
