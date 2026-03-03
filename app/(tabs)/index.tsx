@@ -13,12 +13,12 @@ import {
   RefreshControl,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { computeMatch } from "../../lib/mock";
 import { Profile, LeaseDuration } from "../../lib/types";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useAuth } from "../../context/AuthContext";
-import { loadProfile, loadAllProfiles } from "../../lib/db";
+import { loadProfile, loadAllProfiles, loadRelatedUids } from "../../lib/db";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -246,9 +246,10 @@ export default function DiscoverScreen() {
     Promise.all([
       loadProfile(user.uid),
       loadAllProfiles(user.uid),
-    ]).then(([p, allProfiles]) => {
+      loadRelatedUids(user.uid),
+    ]).then(([p, allProfiles, relatedUids]) => {
       if (p) setMe({ ...FALLBACK_ME, ...p, id: user.uid });
-      setProfiles(allProfiles);
+      setProfiles(allProfiles.filter((prof) => !relatedUids.has(prof.id)));
     }).finally(() => {
       setLoadingProfiles(false);
       setRefreshing(false);
@@ -257,7 +258,14 @@ export default function DiscoverScreen() {
 
   useEffect(() => {
     fetchProfiles();
-  }, [user?.uid]);
+  }, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-filter whenever the tab comes into focus (e.g. after matching someone).
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfiles();
+    }, [user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const [query, setQuery] = useState("");
   const [ageMin, setAgeMin] = useState("");

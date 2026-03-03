@@ -95,6 +95,21 @@ export async function loadAllProfiles(excludeUid: string): Promise<Profile[]> {
     .filter((p) => p.firstName && p.id && p.id !== excludeUid);
 }
 
+/**
+ * Returns the UIDs of everyone the user has any request relationship with
+ * (pending sent, pending received, or accepted). Used to filter Discover.
+ */
+export async function loadRelatedUids(uid: string): Promise<Set<string>> {
+  const [s1, s2] = await Promise.all([
+    getDocs(query(collection(db, "requests"), where("fromUid", "==", uid))),
+    getDocs(query(collection(db, "requests"), where("toUid",   "==", uid))),
+  ]);
+  const uids = new Set<string>();
+  s1.docs.forEach((d) => { const r = d.data(); uids.add(r.toUid); });
+  s2.docs.forEach((d) => { const r = d.data(); uids.add(r.fromUid); });
+  return uids;
+}
+
 // ── Onboarding flag ───────────────────────────────────────────────────────────
 
 /** Write onboarded: true into the user's document. */

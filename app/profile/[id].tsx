@@ -8,8 +8,8 @@ import {
   Pressable,
 } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useLocalSearchParams, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
+import { useEffect, useCallback, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { loadProfile } from "../../lib/db";
 import { computeMatch } from "../../lib/mock";
@@ -111,6 +111,18 @@ export default function ProfileScreen() {
     }).finally(() => setLoading(false));
   }, [id, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Refetch relationship every time the screen comes into focus so the
+  // matched/pending state is always fresh (e.g. after accepting a request).
+  useFocusEffect(
+    useCallback(() => {
+      if (!user || !id) return;
+      getRelationship(id).then((rel) => {
+        setRelationship(rel);
+        setRelationshipChecked(true);
+      });
+    }, [id, user?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -149,8 +161,10 @@ export default function ProfileScreen() {
     isOutgoing ? "sent" :
     pendingDirection ?? null;
 
-  // Determine which action UI to show
-  const showRoommateButton = !isOwnProfile && !isPending && !isMatched && !effectiveDirection && (!pendingDirection || relationshipChecked);
+  // Determine which action UI to show.
+  // showRoommateButton waits for relationshipChecked so it never flashes
+  // before the fetch completes (avoids briefly showing "Request" on a matched profile).
+  const showRoommateButton = !isOwnProfile && !isPending && !isMatched && !effectiveDirection && relationshipChecked;
   const showPendingBadge   = !isOwnProfile && !isMatched && effectiveDirection === "sent";
   const showAcceptDecline  = !isOwnProfile && !isMatched && effectiveDirection === "received";
   const showMatchedBadge   = !isOwnProfile && isMatched;
