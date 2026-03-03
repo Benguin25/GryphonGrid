@@ -12,6 +12,7 @@ import React, {
 import {
   Modal, View, Text, Pressable, Image, StyleSheet, ActivityIndicator, Keyboard,
 } from "react-native";
+import { router } from "expo-router";
 import { RoommateRequest } from "../lib/types";
 import {
   subscribeIncomingRequests,
@@ -155,6 +156,20 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
             <Text style={styles.name}>{currentRequest?.fromName ?? "Someone"}</Text>
             <Text style={styles.subtitle}>wants to be your roommate</Text>
 
+            <Pressable
+              style={styles.viewProfileBtn}
+              onPress={() => {
+                if (currentRequest) seenIds.current.add(currentRequest.id);
+                setCurrentRequest(null);
+                router.push({
+                  pathname: `/profile/${currentRequest?.fromUid}`,
+                  params: { pendingDirection: "received" },
+                });
+              }}
+            >
+              <Text style={styles.viewProfileText}>View Profile</Text>
+            </Pressable>
+
             <View style={styles.buttons}>
               <Pressable
                 style={[styles.btn, styles.declineBtn]}
@@ -239,6 +254,15 @@ const styles = StyleSheet.create({
   acceptBtn:  { backgroundColor: RED },
   declineText: { fontSize: 15, fontWeight: "600", color: "#374151" },
   acceptText:  { fontSize: 15, fontWeight: "700", color: "#fff" },
+  viewProfileBtn: {
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  viewProfileText: { fontSize: 13, fontWeight: "600", color: "#374151" },
   laterBtn:  { marginTop: 14 },
   laterText: { fontSize: 13, color: "#9ca3af" },
 });
