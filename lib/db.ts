@@ -151,12 +151,27 @@ export async function sendRoommateRequest(
   await setDoc(doc(db, "requests", reqId), req);
 }
 
-/** Accept or decline an incoming request. */
+/** Accept or decline an incoming request. When accepting, also removes any
+ *  reverse-direction pending request so the pair only appears once. */
 export async function respondToRequest(
   requestId: string,
   status: "accepted" | "declined",
 ): Promise<void> {
   await updateDoc(doc(db, "requests", requestId), { status });
+
+  if (status === "accepted") {
+    // Clean up any stale reverse-direction pending doc (e.g. if both users
+    // had sent requests to each other).
+    const acceptedSnap = await getDoc(doc(db, "requests", requestId));
+    if (acceptedSnap.exists()) {
+      const { fromUid, toUid } = acceptedSnap.data() as { fromUid: string; toUid: string };
+      const reverseId = `${toUid}_${fromUid}`;
+      if (reverseId !== requestId) {
+        const reverseSnap = await getDoc(doc(db, "requests", reverseId));
+        if (reverseSnap.exists()) await deleteDoc(doc(db, "requests", reverseId));
+      }
+    }
+  }
 }
 
 /**
@@ -180,6 +195,32 @@ export async function getRequestBetween(
   if (s1?.exists()) return { ...(s1.data() as RoommateRequest), id: s1.id };
   if (s2?.exists()) return { ...(s2.data() as RoommateRequest), id: s2.id };
   return null;
+}
+
+/**
+ * Returns the request between uid and otherUid using single-field collection
+ * queries (no composite index required). Reliable fallback for profile pages.
+ * Prefers accepted > pending so a matched pair is never shown as pending.
+ */
+export async function getRelationshipWithUser(
+  uid: string,
+  otherUid: string,
+): Promise<RoommateRequest | null> {
+  const [sentSnap, receivedSnap] = await Promise.all([
+    getDocs(query(collection(db, "requests"), where("fromUid", "==", uid))),
+    getDocs(query(collection(db, "requests"), where("toUid",   "==", uid))),
+  ]);
+  const sentDoc     = sentSnap.docs.find((d)     => d.data().toUid   === otherUid);
+  const receivedDoc = receivedSnap.docs.find((d) => d.data().fromUid === otherUid);
+
+  // If both exist, prefer whichever is accepted so a matched pair is never
+  // mis-identified as still pending.
+  let d = sentDoc ?? receivedDoc;
+  if (sentDoc && receivedDoc) {
+    d = sentDoc.data().status === "accepted" ? sentDoc : receivedDoc;
+  }
+  if (!d) return null;
+  return { ...(d.data() as RoommateRequest), id: d.id };
 }
 
 /**
@@ -217,13 +258,22 @@ export async function loadAcceptedMatches(uid: string): Promise<{ profile: Profi
 /**
  * Load all pending requests for a user — both sent and received.
  * Returns array of { profile, direction } so the UI can label them correctly.
+ * Excludes any pending entry whose partner is already in an accepted match
+ * (handles stale docs left over from mutual-send scenarios).
  */
 export async function loadPendingRequests(
   uid: string,
 ): Promise<{ profile: Profile; direction: "sent" | "received" }[]> {
-  const [sentSnap, receivedSnap] = await Promise.all([
+  const [sentSnap, receivedSnap, acceptedSnap1, acceptedSnap2] = await Promise.all([
     getDocs(query(collection(db, "requests"), where("fromUid", "==", uid), where("status", "==", "pending"))),
     getDocs(query(collection(db, "requests"), where("toUid",   "==", uid), where("status", "==", "pending"))),
+    getDocs(query(collection(db, "requests"), where("fromUid", "==", uid), where("status", "==", "accepted"))),
+    getDocs(query(collection(db, "requests"), where("toUid",   "==", uid), where("status", "==", "accepted"))),
+  ]);
+
+  const acceptedPartners = new Set<string>([
+    ...acceptedSnap1.docs.map((d) => (d.data() as RoommateRequest).toUid),
+    ...acceptedSnap2.docs.map((d) => (d.data() as RoommateRequest).fromUid),
   ]);
 
   const results: { profile: Profile; direction: "sent" | "received" }[] = [];
@@ -231,11 +281,13 @@ export async function loadPendingRequests(
   await Promise.all([
     ...sentSnap.docs.map(async (d) => {
       const req = d.data() as RoommateRequest;
+      if (acceptedPartners.has(req.toUid)) return; // already matched
       const profile = await loadProfile(req.toUid);
       if (profile) results.push({ profile, direction: "sent" });
     }),
     ...receivedSnap.docs.map(async (d) => {
       const req = d.data() as RoommateRequest;
+      if (acceptedPartners.has(req.fromUid)) return; // already matched
       const profile = await loadProfile(req.fromUid);
       if (profile) results.push({ profile, direction: "received" });
     }),

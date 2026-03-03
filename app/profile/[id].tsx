@@ -11,7 +11,7 @@ import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useEffect, useCallback, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { loadProfile } from "../../lib/db";
+import { loadProfile, getRelationshipWithUser } from "../../lib/db";
 import { computeMatch } from "../../lib/mock";
 import { Profile, RoommateRequest } from "../../lib/types";
 import { useAuth } from "../../context/AuthContext";
@@ -102,7 +102,7 @@ export default function ProfileScreen() {
     Promise.all([
       loadProfile(id),
       user ? loadProfile(user.uid) : Promise.resolve(null),
-      user ? getRelationship(id) : Promise.resolve(null),
+      user ? getRelationshipWithUser(user.uid, id) : Promise.resolve(null),
     ]).then(([p, myP, rel]) => {
       setProfile(p);
       if (myP) setMe(myP);
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!user || !id) return;
-      getRelationship(id).then((rel) => {
+      getRelationshipWithUser(user.uid, id).then((rel) => {
         setRelationship(rel);
         setRelationshipChecked(true);
       });

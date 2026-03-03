@@ -19,6 +19,7 @@ import {
   respondToRequest,
   sendRoommateRequest,
   getRequestBetween,
+  getRelationshipWithUser,
   loadProfile,
 } from "../lib/db";
 import { useAuth } from "./AuthContext";
@@ -108,7 +109,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
 
   async function getRelationship(otherUid: string): Promise<RoommateRequest | null> {
     if (!user?.uid) return null;
-    return getRequestBetween(user.uid, otherUid);
+    return getRelationshipWithUser(user.uid, otherUid);
   }
 
   async function respondRequest(requestId: string, status: "accepted" | "declined") {
