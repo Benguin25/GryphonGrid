@@ -28,6 +28,8 @@ const RED = "#CC0000";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type RequestContextType = {
+  /** All live incoming pending requests (real-time). */
+  pendingRequests: RoommateRequest[];
   /** Send a roommate request to another user. Returns "sent"|"already_sent"|"already_matched". */
   sendRequest: (toUid: string) => Promise<"sent" | "already_sent" | "already_matched">;
   /** Get the current request relationship between current user and another user. */
@@ -39,6 +41,7 @@ type RequestContextType = {
 // ── Context ───────────────────────────────────────────────────────────────────
 
 const RequestContext = createContext<RequestContextType>({
+  pendingRequests: [],
   sendRequest: async () => "sent",
   getRelationship: async () => null,
   respondRequest: async () => {},
@@ -117,7 +120,7 @@ export function RequestProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <RequestContext.Provider value={{ sendRequest, getRelationship, respondRequest }}>
+    <RequestContext.Provider value={{ pendingRequests, sendRequest, getRelationship, respondRequest }}>
       {children}
 
       {/* ── Incoming request popup ───────────────────────────────────────── */}

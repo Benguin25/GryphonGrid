@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users ──────────────────────────────────────────────────────────────
+    // Any authenticated user can read profiles (needed for Discover / matching).
+    // Only the owner can write their own profile.
+    match /users/{uid} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Roommate Requests ──────────────────────────────────────────────────
+    // Document ID format: {fromUid}_{toUid}
+    //
+    // read   – either party can read their own requests;
+    //          non-existent docs (resource == null) must also be readable so
+    //          that getDoc() lookups for both ID orderings don't throw.
+    // create – only the sender (fromUid) can create a request
+    // update – either party can update (sender can cancel, recipient can accept/decline)
+    // delete – either party can delete (used by unmatch flow)
+    match /requests/{requestId} {
+      allow read:   if request.auth != null
+                    && (resource == null
+                        || request.auth.uid == resource.data.fromUid
+                        || request.auth.uid == resource.data.toUid);
+
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.fromUid;
+
+      allow update: if request.auth != null
+                    && (request.auth.uid == resource.data.fromUid
+                        || request.auth.uid == resource.data.toUid);
+
+      allow delete: if request.auth != null
+                    && (request.auth.uid == resource.data.fromUid
+                        || request.auth.uid == resource.data.toUid);
+    }
+  }
+}

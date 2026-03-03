@@ -81,18 +81,18 @@ const FALLBACK_ME: Profile = {
 export default function ProfileScreen() {
   const { id, pendingDirection } = useLocalSearchParams<{ id: string, pendingDirection?: string }>();
   const { user } = useAuth();
-  const { sendRequest, getRelationship, respondRequest } = useRequests();
+  const { sendRequest, getRelationship, respondRequest, pendingRequests } = useRequests();
   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [me, setMe] = useState<Profile>(FALLBACK_ME);
   const [loading, setLoading] = useState(true);
   const [relationship, setRelationship] = useState<RoommateRequest | null>(null);
+  const [relationshipChecked, setRelationshipChecked] = useState(false);
   const [sendingRequest, setSendingRequest] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [respondingRequest, setRespondingRequest] = useState(false);
   const [unmatching, setUnmatching] = useState(false);
-  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [showUnmatchDialog, setShowUnmatchDialog] = useState(false);
   const [showAlreadyMatchedDialog, setShowAlreadyMatchedDialog] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
@@ -107,8 +107,9 @@ export default function ProfileScreen() {
       setProfile(p);
       if (myP) setMe(myP);
       setRelationship(rel);
+      if (user) setRelationshipChecked(true);
     }).finally(() => setLoading(false));
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -129,19 +130,29 @@ export default function ProfileScreen() {
     );
   }
 
+  // The live incoming request for this profile (same source the popup uses).
+  const incomingRequest = pendingRequests.find((r) => r.fromUid === id) ?? null;
+
   const score = computeMatch(me, profile);
 
-  // Determine relationship state
-  const isOwnProfile  = user && profile.id === user.uid;
-  const isMatched     = relationship?.status === "accepted";
-  const isPending     = relationship?.status === "pending";
-  const isOutgoing    = isPending && relationship?.fromUid === user?.uid;
-  const isIncoming    = isPending && relationship?.toUid   === user?.uid;
+  // Determine relationship state — prefer the live incomingRequest over the
+  // async-loaded relationship so we always have the correct request ID.
+  const activeRel      = incomingRequest ?? relationship;
+  const isOwnProfile   = user && profile.id === user.uid;
+  const isMatched      = relationship?.status === "accepted";
+  const isPending      = activeRel?.status === "pending";
+  const isOutgoing     = isPending && activeRel?.fromUid === user?.uid;
+  const isIncoming     = !!incomingRequest || (isPending && activeRel?.toUid === user?.uid);
+
+  const effectiveDirection =
+    isIncoming ? "received" :
+    isOutgoing ? "sent" :
+    pendingDirection ?? null;
 
   // Determine which action UI to show
-  const showRoommateButton = !isOwnProfile && !isPending && !isMatched;
-  const showPendingBadge   = !isOwnProfile && isOutgoing;
-  const showAcceptDecline  = !isOwnProfile && isIncoming;
+  const showRoommateButton = !isOwnProfile && !isPending && !isMatched && !effectiveDirection && (!pendingDirection || relationshipChecked);
+  const showPendingBadge   = !isOwnProfile && !isMatched && effectiveDirection === "sent";
+  const showAcceptDecline  = !isOwnProfile && !isMatched && effectiveDirection === "received";
   const showMatchedBadge   = !isOwnProfile && isMatched;
 
   async function handleRoommateRequest() {
@@ -166,30 +177,30 @@ export default function ProfileScreen() {
   }
 
   async function handleAccept() {
-    if (!relationship) return;
+    const req = incomingRequest ?? relationship ?? await getRelationship(id);
+    if (!req) return;
     setRespondingRequest(true);
     try {
-      await respondRequest(relationship.id, "accepted");
-      const updated = await getRelationship(id);
-      setRelationship(updated);
+      await respondRequest(req.id, "accepted");
+      router.back();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDialogError(`Could not accept: ${msg}`);
     } finally {
       setRespondingRequest(false);
     }
   }
 
-  function handleDecline() {
-    if (!relationship) return;
-    setShowDeclineDialog(true);
-  }
-
-  async function doDecline() {
-    if (!relationship) return;
-    setShowDeclineDialog(false);
+  async function handleDecline() {
+    const req = incomingRequest ?? relationship ?? await getRelationship(id);
+    if (!req) return;
     setRespondingRequest(true);
     try {
-      await respondRequest(relationship.id, "declined");
-      const updated = await getRelationship(id);
-      setRelationship(updated);
+      await respondRequest(req.id, "declined");
+      router.back();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDialogError(`Could not decline: ${msg}`);
     } finally {
       setRespondingRequest(false);
     }
@@ -419,16 +430,6 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
       )}
-      <AppDialog
-        visible={showDeclineDialog}
-        title="Decline Request"
-        message="Are you sure you want to decline this request?"
-        confirmText="Decline"
-        cancelText="Cancel"
-        destructive
-        onConfirm={doDecline}
-        onCancel={() => setShowDeclineDialog(false)}
-      />
       <AppDialog
         visible={showUnmatchDialog}
         title="Unmatch"

@@ -152,12 +152,18 @@ export async function getRequestBetween(
   uid1: string,
   uid2: string,
 ): Promise<RoommateRequest | null> {
+  // Try each direction independently so a permission error on the non-existent
+  // doc ID doesn't cause the whole call to reject.
+  const tryGet = async (docId: string) => {
+    try { return await getDoc(doc(db, "requests", docId)); }
+    catch { return null; }
+  };
   const [s1, s2] = await Promise.all([
-    getDoc(doc(db, "requests", `${uid1}_${uid2}`)),
-    getDoc(doc(db, "requests", `${uid2}_${uid1}`)),
+    tryGet(`${uid1}_${uid2}`),
+    tryGet(`${uid2}_${uid1}`),
   ]);
-  if (s1.exists()) return s1.data() as RoommateRequest;
-  if (s2.exists()) return s2.data() as RoommateRequest;
+  if (s1?.exists()) return { ...(s1.data() as RoommateRequest), id: s1.id };
+  if (s2?.exists()) return { ...(s2.data() as RoommateRequest), id: s2.id };
   return null;
 }
 
