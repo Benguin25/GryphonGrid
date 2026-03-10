@@ -5,35 +5,72 @@
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   Image,
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { router } from "expo-router";
 import { useAuth } from "../context/AuthContext";
-import type {} from "../context/AuthContext";
 import { saveProfile, saveOnboarded, uploadProfilePhoto } from "../lib/db";
 import {
   Profile,
-  SleepSchedule,
-  GuestFrequency,
   SubstanceEnv,
-  NoiseTolerance,
   LeaseDuration,
   Gender,
-  Cleanliness,
-  SocialEnergy,
+  PetAllergy,
+  SurveyScore,
+  SurveyScores,
+  CategoryKey,
 } from "../lib/types";
+import { deriveSurveyDisplayFields, PRIORITY_MULTIPLIERS, ALL_CATEGORIES } from "../lib/mock";
 
 const RED = "#CC0000";
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
+
+// ── Supporting data ───────────────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  cleanliness:   "Cleanliness 🧹",
+  socialEnergy:  "Social Energy 🗣️",
+  sleepSchedule: "Sleep Schedule 🌙",
+  guests:        "Guests & Friends 🎉",
+  lifestyle:     "Lifestyle 🏡",
+};
+
+const GENDER_OPTIONS: { label: string; value: Gender }[] = [
+  { label: "Male", value: "male" },
+  { label: "Female", value: "female" },
+  { label: "Non-binary", value: "non-binary" },
+  { label: "Prefer not to say", value: "prefer-not-to-say" },
+];
+
+const SUBSTANCE_OPTIONS: { label: string; value: SubstanceEnv }[] = [
+  { label: "Smoke-free", value: "smoke-free" },
+  { label: "Alcohol OK", value: "alcohol-ok" },
+  { label: "420-friendly", value: "420-friendly" },
+  { label: "No substances", value: "no-substances" },
+];
+
+const LEASE_OPTIONS: { label: string; value: LeaseDuration }[] = [
+  { label: "4 months", value: "4-months" },
+  { label: "8 months", value: "8-months" },
+  { label: "12 months", value: "12-months" },
+  { label: "16 months", value: "16-months" },
+  { label: "16+ months", value: "16-plus" },
+  { label: "Indefinite", value: "indefinite" },
+];
+
+const PET_ALLERGY_OPTIONS: { label: string; value: PetAllergy }[] = [
+  { label: "None", value: "none" },
+  { label: "Dogs", value: "dog" },
+  { label: "Cats", value: "cat" },
+  { label: "Both", value: "both" },
+];
 
 const HOBBIES_LIST: string[] = [
   "Running", "Cycling", "Yoga", "Gym / Weightlifting", "Swimming",
@@ -55,1321 +92,1239 @@ const DEAL_BREAKERS_LIST: string[] = [
   "Pet-free required",
   "Equal chore sharing",
   "No parties at home",
-  "Respect shared spaces",
-  "Dishes done within 24 hr",
-  "Strict rent deadlines",
-  "24hr guest notice required",
-  "No late-night cooking",
-  "Separate fridge space",
-  "Study-quiet hours",
   "No loud music",
+  "Dishes done daily",
+  "Shared grocery costs",
+  "No messy common areas",
+  "Separate food only",
+  "Respect sleep schedules",
+  "No significant others staying over",
+  "Minimal noise during work hours",
 ];
 
-const MAX_HOBBIES = 5;
+// ── Survey questions data ─────────────────────────────────────────────────────
 
-type StepProps = { p: Profile; set: <K extends keyof Profile>(key: K, val: Profile[K]) => void };
-type QuizAnswer = "A" | "B" | "C" | "D" | undefined;
+type SurveyAnswer = { label: string; sublabel: string; score: SurveyScore };
+type SurveyQuestion = {
+  category: CategoryKey;
+  type: "behavior" | "expectation";
+  question: string;
+  qKey: keyof SurveyScores;
+  answers: [SurveyAnswer, SurveyAnswer, SurveyAnswer, SurveyAnswer];
+};
 
-// -- Chip picker ---------------------------------------------------------------
+const SURVEY_QUESTIONS: SurveyQuestion[] = [
+  {
+    category: "cleanliness",
+    type: "behavior",
+    qKey: "q1",
+    question: "Your friend is crashing on your couch tonight with zero notice. You let them in. What do they walk into?",
+    answers: [
+      { label: "A", sublabel: "A clean space — it pretty much always looks like this.", score: 0.5 },
+      { label: "B", sublabel: "Lived in but presentable, nothing embarrassing.", score: 1.0 },
+      { label: "C", sublabel: "I'd be doing a quick scramble tidy while they're taking their shoes off.", score: 1.5 },
+      { label: "D", sublabel: "A genuine mess — I'd warn them in advance honestly.", score: 2.0 },
+    ],
+  },
+  {
+    category: "cleanliness",
+    type: "expectation",
+    qKey: "q2",
+    question: "You see a great apartment listing, but then you see photos of the current tenant's space. Which kills the vibe?",
+    answers: [
+      { label: "A", sublabel: "Dishes stacked in the sink in the listing photos.", score: 0.5 },
+      { label: "B", sublabel: "Stuff piled on every counter but the floor is clear.", score: 1.0 },
+      { label: "C", sublabel: "Visibly dusty shelves and fingerprint-smudged surfaces.", score: 1.5 },
+      { label: "D", sublabel: "None of it — I'm renting the bones of the apartment, not their lifestyle.", score: 2.0 },
+    ],
+  },
+  {
+    category: "socialEnergy",
+    type: "behavior",
+    qKey: "q3",
+    question: "It's a rare Saturday with zero obligations. How do you spend the first 4 hours of your day?",
+    answers: [
+      { label: "A", sublabel: "Totally solo — reading, gaming, or a walk. I need silence to \"reset.\"", score: 0.5 },
+      { label: "B", sublabel: "Slow start at home, but I'll probably text a friend to see what they're doing later.", score: 1.0 },
+      { label: "C", sublabel: "Out and about — I'd rather grab a coffee with someone than sit at home.", score: 1.5 },
+      { label: "D", sublabel: "I'm probably hosting a group or at a busy event; I feel best around people.", score: 2.0 },
+    ],
+  },
+  {
+    category: "socialEnergy",
+    type: "expectation",
+    qKey: "q4",
+    question: "You're at a quiet café. A stranger sits next to you and starts a quiet phone call. What's your internal reaction?",
+    answers: [
+      { label: "A", sublabel: "It's a major distraction — hard to focus once someone else is talking.", score: 0.5 },
+      { label: "B", sublabel: "A little annoying, but headphones fix it within a minute.", score: 1.0 },
+      { label: "C", sublabel: "I barely notice — background talking actually helps me focus.", score: 1.5 },
+      { label: "D", sublabel: "I find it interesting; the \"life\" in the room is comforting.", score: 2.0 },
+    ],
+  },
+  {
+    category: "sleepSchedule",
+    type: "behavior",
+    qKey: "q5",
+    question: "If you were on a desert island with no clocks, what time would your body naturally wake up and sleep?",
+    answers: [
+      { label: "A", sublabel: "Wake with the sun (6 am), asleep shortly after dark (9–10 pm).", score: 0.5 },
+      { label: "B", sublabel: "A standard 8 am wake-up and an 11 pm bedtime.", score: 1.0 },
+      { label: "C", sublabel: "Wake up late morning (10 am), asleep in the early hours (1–2 am).", score: 1.5 },
+      { label: "D", sublabel: "I'm a total night creature — up until 4 am, sleeping through the day.", score: 2.0 },
+    ],
+  },
+  {
+    category: "sleepSchedule",
+    type: "expectation",
+    qKey: "q6",
+    question: "You're in a hotel and can hear a muffled TV from the room next door. At what point is it a problem?",
+    answers: [
+      { label: "A", sublabel: "Any time after 9 pm — I need near-silence to feel my day has ended.", score: 0.5 },
+      { label: "B", sublabel: "If it's still going past midnight, it would bother my sleep.", score: 1.0 },
+      { label: "C", sublabel: "As long as it's just a muffle and not a shout, I can sleep through anything.", score: 1.5 },
+      { label: "D", sublabel: "I actually find white noise or distant TV sounds helpful for falling asleep.", score: 2.0 },
+    ],
+  },
+  {
+    category: "guests",
+    type: "behavior",
+    qKey: "q7",
+    question: "Your friend group is figuring out where to watch the game this weekend. What role do you play?",
+    answers: [
+      { label: "A", sublabel: "\"Come to mine\" — I like hosting, my place is always open.", score: 2.0 },
+      { label: "B", sublabel: "I'd offer if no one else does, but I'm not the first to suggest it.", score: 1.5 },
+      { label: "C", sublabel: "Happy to go wherever — just not really a host person.", score: 1.0 },
+      { label: "D", sublabel: "I'd rather go to a bar or someone else's — I keep my space pretty personal.", score: 0.5 },
+    ],
+  },
+  {
+    category: "guests",
+    type: "expectation",
+    qKey: "q8",
+    question: "You're casting a reality show about living situations. Which character stresses you out most as a roommate?",
+    answers: [
+      { label: "A", sublabel: "The one whose friends treat the apartment like their second home.", score: 0.5 },
+      { label: "B", sublabel: "The one who disappears for weeks then reappears with a suitcase full of people.", score: 0.8 },
+      { label: "C", sublabel: "The one who never has anyone over and makes you feel guilty for it.", score: 1.6 },
+      { label: "D", sublabel: "The one who schedules every social interaction two weeks in advance.", score: 2.0 },
+    ],
+  },
+  {
+    category: "lifestyle",
+    type: "behavior",
+    qKey: "q9",
+    question: "You're deep in focus on a task. What's your ideal ambient environment?",
+    answers: [
+      { label: "A", sublabel: "Total sensory blackout — no music, neutral lighting, no scents.", score: 0.5 },
+      { label: "B", sublabel: "Very controlled — a specific playlist and perhaps a scented candle I chose.", score: 1.0 },
+      { label: "C", sublabel: "Normal activity — window open, street noise, whatever smells are in the air.", score: 1.5 },
+      { label: "D", sublabel: "High intensity — TV on, bright lights, and high activity.", score: 2.0 },
+    ],
+  },
+  {
+    category: "lifestyle",
+    type: "expectation",
+    qKey: "q10",
+    question: "You check into an Airbnb and notice a faint lingering smell of the previous guest's cooking. How does this affect your stay?",
+    answers: [
+      { label: "A", sublabel: "Very difficult to relax until the smell is completely gone.", score: 0.5 },
+      { label: "B", sublabel: "Slightly bothered — I'd open all the windows to reset the air.", score: 1.0 },
+      { label: "C", sublabel: "I'd notice it for five minutes and then forget it exists.", score: 1.5 },
+      { label: "D", sublabel: "I wouldn't notice it at all unless someone else pointed it out.", score: 2.0 },
+    ],
+  },
+];
+
+// ── Small reusable UI components ──────────────────────────────────────────────
+
 function Chips<T extends string>({
-  label, options, value, onSelect,
+  options,
+  selected,
+  onToggle,
+  color = RED,
+}: {
+  options: string[];
+  selected: T[];
+  onToggle: (v: T) => void;
+  color?: string;
+}) {
+  return (
+    <View style={chipStyles.row}>
+      {options.map((opt) => {
+        const active = selected.includes(opt as T);
+        return (
+          <Pressable
+            key={opt}
+            style={[chipStyles.chip, active && { backgroundColor: color + "15", borderColor: color }]}
+            onPress={() => onToggle(opt as T)}
+          >
+            <Text style={[chipStyles.chipText, active && { color, fontWeight: "700" }]}>{opt}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const chipStyles = StyleSheet.create({
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#f9fafb",
+  },
+  chipText: { fontSize: 13, color: "#374151" },
+});
+
+function ToggleChips<T extends string>({
+  label,
+  options,
+  value,
+  onSelect,
 }: {
   label: string;
-  options: { value: T; label: string }[];
-  value: T | undefined;
+  options: { label: string; value: T }[];
+  value: T;
   onSelect: (v: T) => void;
 }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.chips}>
-        {options.map((opt) => (
-          <Pressable
-            key={opt.value}
-            style={[styles.chip, value === opt.value && styles.chipActive]}
-            onPress={() => onSelect(opt.value)}
-          >
-            <Text style={[styles.chipText, value === opt.value && styles.chipTextActive]}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-// -- Toggle row ----------------------------------------------------------------
-function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <View style={styles.toggleRow}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: "#e5e7eb", true: RED }} thumbColor="#fff" />
-    </View>
-  );
-}
-
-// -- Accordion quiz question ----------------------------------------------------
-function AccordionQuestion({
-  num, question, options, answer, open, onToggle, onSelect, onNext, isLast,
-}: {
-  num: number;
-  question: string;
-  options: { value: "A" | "B" | "C" | "D"; label: string }[];
-  answer: QuizAnswer;
-  open: boolean;
-  onToggle: () => void;
-  onSelect: (v: QuizAnswer) => void;
-  onNext?: () => void;
-  isLast?: boolean;
-}) {
-  const selected = options.find((o) => o.value === answer);
-  return (
-    <View style={[styles.accordion, open && styles.accordionOpen]}>
-      <Pressable style={styles.accordionHeader} onPress={onToggle}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.accordionNum}>Question {num}</Text>
-          <Text style={styles.accordionQ} numberOfLines={open ? undefined : 2}>{question}</Text>
-          {!open && selected && (
-            <Text style={styles.accordionSelected}>{"\u2713"} {selected.label}</Text>
-          )}
-        </View>
-        <View style={styles.accordionChevronWrap}>
-          <FontAwesome name={open ? "chevron-up" : "chevron-down"} size={12} color="#9ca3af" />
-        </View>
-      </Pressable>
-      {open && (
-        <View style={styles.accordionBody}>
-          {options.map((opt) => (
+    <View style={{ gap: 8 }}>
+      <Text style={s.fieldLabel}>{label}</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {options.map((opt) => {
+          const active = opt.value === value;
+          return (
             <Pressable
               key={opt.value}
-              style={[styles.optionRow, answer === opt.value && styles.optionRowActive]}
+              style={[s.toggleChip, active && s.toggleChipActive]}
               onPress={() => onSelect(opt.value)}
             >
-              <View style={[styles.optionCircle, answer === opt.value && styles.optionCircleActive]}>
-                <Text style={[styles.optionCircleText, answer === opt.value && styles.optionCircleTextActive]}>
-                  {opt.value}
-                </Text>
-              </View>
-              <Text style={[styles.optionText, answer === opt.value && styles.optionTextActive]}>
+              <Text style={[s.toggleChipText, active && s.toggleChipTextActive]}>
                 {opt.label}
               </Text>
             </Pressable>
-          ))}
-          {!!answer && onNext && (
-            <Pressable style={styles.accordionNextBtn} onPress={onNext}>
-              <FontAwesome name="check" size={13} color={RED} style={{ marginRight: 4 }} />
-              <Text style={styles.accordionNextText}>{isLast ? "Done" : "Next"}</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
+          );
+        })}
+      </View>
     </View>
   );
 }
 
-// -- Calendar date picker (pure React Native, no native modules) ---------------
-const CAL_MONTHS       = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const CAL_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const CAL_DAYS         = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+// ── Main component ─────────────────────────────────────────────────────────────
 
-function DatePickerField({
-  label, value, onChange,
-}: { label: string; value: string; onChange: (v: string) => void }) {
-  const now     = new Date();
-  const initial = value ? new Date(value + "T12:00:00") : now;
-  const [viewYear,  setViewYear]  = useState(initial.getFullYear());
-  const [viewMonth, setViewMonth] = useState(initial.getMonth());
-  const [show, setShow] = useState(false);
+export default function OnboardingScreen() {
+  const { user, markOnboardingDone } = useAuth();
+  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
 
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  function prevMonth() {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
-    else setViewMonth(m => m - 1);
-  }
-  function nextMonth() {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
-    else setViewMonth(m => m + 1);
-  }
-  function selectDay(day: number) {
-    onChange(`${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
-    setShow(false);
-  }
-
-  const daysInMonth    = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
-  const cells: (number | null)[] = [
-    ...Array(firstDayOfWeek).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
-  const displayValue = value
-    ? (() => { const [y, m, d] = value.split("-"); return `${CAL_MONTHS_SHORT[parseInt(m, 10) - 1]} ${d}, ${y}`; })()
-    : "Select a date";
-
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable style={styles.dateBtn} onPress={() => setShow(true)}>
-        <Text style={[styles.dateBtnText, !value && styles.datePlaceholder]}>{displayValue}</Text>
-        <FontAwesome name="chevron-down" size={14} color="#6b7280" />
-      </Pressable>
-      <Modal visible={show} transparent animationType="slide">
-        <View style={styles.dateModalBg}>
-          <View style={[styles.dateModal, { paddingBottom: 16 }]}>
-            <View style={calStyles.header}>
-              <Pressable onPress={() => setShow(false)}>
-                <Text style={calStyles.cancel}>Cancel</Text>
-              </Pressable>
-              <Text style={calStyles.title}>Select Date</Text>
-              <View style={{ width: 60 }} />
-            </View>
-            <View style={calStyles.nav}>
-              <Pressable onPress={prevMonth} style={calStyles.navBtn}>
-                <FontAwesome name="chevron-left" size={14} color="#374151" />
-              </Pressable>
-              <Text style={calStyles.navMonth}>{CAL_MONTHS[viewMonth]} {viewYear}</Text>
-              <Pressable onPress={nextMonth} style={calStyles.navBtn}>
-                <FontAwesome name="chevron-right" size={14} color="#374151" />
-              </Pressable>
-            </View>
-            <View style={calStyles.weekRow}>
-              {CAL_DAYS.map(d => <Text key={d} style={calStyles.weekDay}>{d}</Text>)}
-            </View>
-            <View style={calStyles.grid}>
-              {cells.map((day, i) => {
-                if (day === null) return <View key={`b${i}`} style={calStyles.cell} />;
-                const cellDate   = new Date(viewYear, viewMonth, day);
-                const isPast     = cellDate < today;
-                const dateStr    = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                const isSelected = dateStr === value;
-                const isToday    = cellDate.getTime() === today.getTime();
-                return (
-                  <Pressable
-                    key={dateStr}
-                    style={[calStyles.cell, isSelected && calStyles.cellSelected, !isSelected && isToday && calStyles.cellToday]}
-                    onPress={() => !isPast && selectDay(day)}
-                    disabled={isPast}
-                  >
-                    <Text style={[calStyles.cellText, isSelected && calStyles.cellTextSelected, isPast && calStyles.cellTextPast]}>
-                      {day}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-const calStyles = StyleSheet.create({
-  header:           { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#e5e7eb" },
-  title:            { fontSize: 15, fontWeight: "700", color: "#111827" },
-  cancel:           { fontSize: 15, color: "#6b7280", width: 60 },
-  nav:              { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 10 },
-  navBtn:           { padding: 10 },
-  navArrow:         { fontSize: 24, color: RED, fontWeight: "700", lineHeight: 26 },
-  navMonth:         { fontSize: 16, fontWeight: "700", color: "#111827" },
-  weekRow:          { flexDirection: "row", paddingHorizontal: 8, marginBottom: 2 },
-  weekDay:          { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "700", color: "#9ca3af", paddingVertical: 4 },
-  grid:             { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 8 },
-  cell:             { width: "14.2857%", aspectRatio: 1, alignItems: "center", justifyContent: "center", borderRadius: 100 },
-  cellSelected:     { backgroundColor: RED },
-  cellToday:        { borderWidth: 1.5, borderColor: RED },
-  cellText:         { fontSize: 14, color: "#111827" },
-  cellTextSelected: { color: "#fff", fontWeight: "700" },
-  cellTextPast:     { color: "#d1d5db" },
-});
-
-// -- Step heading --------------------------------------------------------------
-function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <View style={styles.stepHeading}>
-      <Text style={styles.stepTitle}>{title}</Text>
-      <Text style={styles.stepSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
-
-// -- Scoring helpers -----------------------------------------------------------
-const CLEAN_MAP: Record<string, number>  = { A: 5, B: 4, C: 3, D: 1 };
-const CLEAN_MAP2: Record<string, number> = { A: 5, B: 4, C: 3, D: 2 };
-const SOCIAL_MAP: Record<string, number>  = { A: 1, B: 2, C: 4, D: 5 };
-const SOCIAL_MAP3: Record<string, number> = { A: 1, B: 2, C: 3, D: 5 };
-
-function avg3(
-  a: QuizAnswer, b: QuizAnswer, c: QuizAnswer,
-  m1: Record<string, number>, m2: Record<string, number>, m3: Record<string, number>,
-): Cleanliness {
-  const vals = [(a ? (m1[a] ?? 3) : 3), (b ? (m2[b] ?? 3) : 3), (c ? (m3[c] ?? 3) : 3)];
-  return Math.round(vals.reduce((x, y) => x + y, 0) / 3) as Cleanliness;
-}
-
-function substanceFrom(a?: string): SubstanceEnv {
-  if (a === "A") return "no-substances";
-  if (a === "B") return "smoke-free";
-  if (a === "C") return "alcohol-ok";
-  return "420-friendly";
-}
-
-function noiseFrom(a?: string): NoiseTolerance {
-  if (a === "A" || a === "B") return "quiet";
-  if (a === "C") return "moderate";
-  return "background-ok";
-}
-
-function guestsFrom(a?: string): GuestFrequency {
-  if (a === "A" || a === "B") return "rarely";
-  if (a === "C") return "occasionally";
-  return "frequently";
-}
-
-// -- Onboarding photo picker ---------------------------------------------------
-function OnboardingPhotoPicker({ value, onChange }: { value: string; onChange: (uri: string) => void }) {
-  const { user } = useAuth();
+  // ─── Step 1: Basic info ────────────────────────────────────────────────
+  const [firstName, setFirstName] = useState("");
+  const [photoUrl, setPhotoUrl] = useState(""); // local URI or uploaded URL
   const [uploading, setUploading] = useState(false);
+  const [program, setProgram] = useState("");
+  const [age, setAge] = useState("");
+  const [bio, setBio] = useState("");
+  const [gender, setGender] = useState<Gender | "">("");
+  const [moveInDate, setMoveInDate] = useState("");
 
-  async function pick(useCamera: boolean) {
-    if (Platform.OS !== "web") {
-      const perm = useCamera
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (perm.status !== "granted") {
-        Alert.alert("Permission required", useCamera ? "Camera access is needed." : "Photo library access is needed.");
-        return;
-      }
-    }
-    const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
-    if (!result.canceled && result.assets.length > 0) {
-      const localUri = result.assets[0].uri;
-      try {
-        setUploading(true);
-        const downloadUrl = await uploadProfilePhoto(user?.uid ?? "anon", localUri);
-        onChange(downloadUrl);
-      } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Unknown error";
-        console.error("[OnboardingPhotoPicker] upload error:", e);
-        if (Platform.OS === "web") {
-          // eslint-disable-next-line no-alert
-          window.alert(`Photo upload failed: ${msg}`);
-        } else {
-          Alert.alert("Upload failed", msg);
-        }
-      } finally {
-        setUploading(false);
-      }
-    }
+  // ─── Step 2: Category priority ranking ────────────────────────────────
+  const [priorities, setPriorities] = useState<CategoryKey[]>([...ALL_CATEGORIES]);
+
+  // ─── Step 3: Survey answers ────────────────────────────────────────────
+  const [surveyQ, setSurveyQ] = useState(0); // 0-9 current question index
+  const [surveyAnswers, setSurveyAnswers] = useState<Partial<SurveyScores>>({});
+  const [surveyComplete, setSurveyComplete] = useState(false); // all 10 done
+  const [surveyEditMode, setSurveyEditMode] = useState(false); // editing a single Q
+
+  // ─── Step 4: Hard filters ──────────────────────────────────────────────
+  const [substanceEnv, setSubstanceEnv] = useState<SubstanceEnv>("smoke-free");
+  const [hasDog, setHasDog] = useState(false);
+  const [hasCat, setHasCat] = useState(false);
+  const [petAllergy, setPetAllergy] = useState<PetAllergy>("none");
+  const [openToPets, setOpenToPets] = useState(true);
+  const [leaseDuration, setLeaseDuration] = useState<LeaseDuration>("8-months");
+  const [budgetMin, setBudgetMin] = useState("");
+  const [budgetMax, setBudgetMax] = useState("");
+
+  // ─── Step 5: Review extras ─────────────────────────────────────────────
+  const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
+  const [selectedDealBreakers, setSelectedDealBreakers] = useState<string[]>([]);
+  const [instagramHandle, setInstagramHandle] = useState("");
+
+  // ── Navigation helpers ───────────────────────────────────────────────────────
+
+  function canGoNext(): boolean {
+    if (step === 1) return firstName.trim().length > 0 && program.trim().length > 0 && bio.trim().length > 0;
+    if (step === 3) return false; // survey auto-advances; Next disabled
+    return true;
   }
 
-  function prompt() {
-    // On web, camera isn't available  -  go straight to library picker
-    if (Platform.OS === "web") {
-      pick(false);
+  function handleBack() {
+    if (step === 3 && surveyEditMode) {
+      setSurveyEditMode(false);
       return;
     }
-    Alert.alert("Profile Photo", "Choose a source", [
-      { text: "Camera", onPress: () => pick(true) },
-      { text: "Photo Library", onPress: () => pick(false) },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  }
-
-  return (
-    <View style={obPhotoStyles.wrap}>
-      <Pressable onPress={uploading ? undefined : prompt} style={{ position: "relative" }}>
-        {value ? (
-          <Image source={{ uri: value }} style={obPhotoStyles.avatar} />
-        ) : (
-          <View style={[obPhotoStyles.avatar, obPhotoStyles.placeholder]}>
-            <FontAwesome name="user" size={32} color="#9ca3af" />
-            <Text style={obPhotoStyles.hint}>Add photo</Text>
-          </View>
-        )}
-        {uploading ? (
-          <View style={[obPhotoStyles.badge, { backgroundColor: "#9ca3af" }]}>
-            <ActivityIndicator size="small" color="#fff" />
-          </View>
-        ) : (
-          <View style={obPhotoStyles.badge}>
-            <Text style={obPhotoStyles.badgeText}>?</Text>
-          </View>
-        )}
-      </Pressable>
-      <Text style={obPhotoStyles.caption}>
-        {uploading ? "Uploading..." : `Profile photo${value ? "" : " (optional)"}`}
-      </Text>
-      {!!value && !uploading && (
-        <Pressable onPress={() => onChange("")}>
-          <Text style={obPhotoStyles.remove}>Remove</Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-const obPhotoStyles = StyleSheet.create({
-  wrap: { alignItems: "center", marginBottom: 20, gap: 6 },
-  avatar: { width: 100, height: 100, borderRadius: 50 },
-  placeholder: {
-    backgroundColor: "#f3f4f6",
-    borderWidth: 2,
-    borderColor: "#e5e7eb",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  icon: { fontSize: 28 },
-  hint: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
-  badge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: RED,
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  badgeText: { color: "#fff", fontSize: 12 },
-  caption: { fontSize: 12, color: "#6b7280", fontWeight: "500" },
-  remove: { fontSize: 12, color: "#ef4444" },
-});
-
-// -- Step 0: Identity + basics -------------------------------------------------
-function Step0({ p, set }: StepProps) {
-  return (
-    <>
-      <StepHeading title="About you" subtitle="Let's start with the basics." />
-      <OnboardingPhotoPicker value={p.photoUrl ?? ""} onChange={(v) => set("photoUrl", v)} />
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>First name *</Text>
-        <TextInput
-          style={styles.input}
-          value={p.firstName}
-          onChangeText={(v) => set("firstName", v)}
-          placeholder="Your first name"
-          placeholderTextColor="#9ca3af"
-          autoCapitalize="words"
-          autoFocus={false}
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Age</Text>
-        <TextInput
-          style={styles.input}
-          value={p.age?.toString() ?? ""}
-          onChangeText={(v) => set("age", v ? parseInt(v, 10) : undefined)}
-          placeholder="e.g. 22"
-          placeholderTextColor="#9ca3af"
-          keyboardType="numeric"
-          autoFocus={false}
-        />
-      </View>
-      <Chips<Gender>
-        label="Gender"
-        options={[
-          { value: "male", label: "Male" },
-          { value: "female", label: "Female" },
-          { value: "non-binary", label: "Non-binary" },
-          { value: "prefer-not-to-say", label: "Prefer not to say" },
-        ]}
-        value={p.gender}
-        onSelect={(v) => set("gender", v)}
-      />
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Program / major *</Text>
-        <TextInput
-          style={styles.input}
-          value={p.program}
-          onChangeText={(v) => set("program", v)}
-          placeholder="e.g. Computer Science"
-          placeholderTextColor="#9ca3af"
-          autoCapitalize="words"
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Bio <Text style={styles.charCount}>({(p.bio ?? "").length}/250)</Text></Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={p.bio}
-          onChangeText={(v) => set("bio", v.slice(0, 250))}
-          placeholder="A short intro  -  hobbies, lifestyle, anything a roommate should know - "
-          placeholderTextColor="#9ca3af"
-          multiline
-          numberOfLines={5}
-          textAlignVertical="top"
-        />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>Instagram <Text style={styles.charCount}>(optional  -  only shared after matching)</Text></Text>
-        <View style={styles.igRow}>
-          <Text style={styles.igAt}>@</Text>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            value={p.instagramHandle ?? ""}
-            onChangeText={(v) => set("instagramHandle", v.replace(/[^a-zA-Z0-9._]/g, ""))}
-            placeholder="your_handle"
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
-      </View>
-    </>
-  );
-}
-
-// -- Step 1: Hard facts --------------------------------------------------------
-function Step1({ p, set }: StepProps) {
-  return (
-    <>
-      <StepHeading title="The facts" subtitle="Hard details that shape compatibility." />
-      <Chips<SleepSchedule>
-        label="Sleep schedule"
-        options={[
-          { value: "early",      label: "\uD83C\uDF05 Early riser" },
-          { value: "normal",     label: "\u2600\uFE0F Normal" },
-          { value: "night-owl",  label: "\uD83C\uDF19 Night owl" },
-          { value: "shift",      label: "\uD83D\uDD04 Shift worker" },
-        ]}
-        value={p.sleepSchedule}
-        onSelect={(v) => set("sleepSchedule", v)}
-      />
-      <Chips<"none" | "dog" | "cat" | "both">
-        label="Pets I own"
-        options={[
-          { value: "none", label: "No pets" },
-          { value: "dog",  label: "\uD83D\uDC36 Dog" },
-          { value: "cat",  label: "\uD83D\uDC31 Cat" },
-          { value: "both", label: "\uD83D\uDC36\uD83D\uDC31 Both" },
-        ]}
-        value={p.hasDog && p.hasCat ? "both" : p.hasDog ? "dog" : p.hasCat ? "cat" : "none"}
-        onSelect={(v) => {
-          set("hasDog", v === "dog" || v === "both");
-          set("hasCat", v === "cat" || v === "both");
-        }}
-      />
-      <View style={styles.toggleGroup}>
-        <ToggleRow label="Open to living with pets" value={p.openToPets} onChange={(v) => set("openToPets", v)} />
-      </View>
-      <Chips<"none" | "dog" | "cat" | "both">
-        label="Pet allergies"
-        options={[
-          { value: "none", label: "None" },
-          { value: "dog", label: "Dog" },
-          { value: "cat", label: "Cat" },
-          { value: "both", label: "Both" },
-        ]}
-        value={p.petAllergy}
-        onSelect={(v) => set("petAllergy", v)}
-      />
-      <Chips<GuestFrequency>
-        label="How often do you have guests?"
-        options={[
-          { value: "rarely", label: "Rarely" },
-          { value: "occasionally", label: "Occasionally" },
-          { value: "frequently", label: "Frequently" },
-        ]}
-        value={p.guestsFrequency}
-        onSelect={(v) => { set("guestsFrequency", v); set("prefGuestsFrequency", v); }}
-      />
-      <Chips<LeaseDuration>
-        label="Lease duration"
-        options={[
-          { value: "4-months", label: "4 mo" },
-          { value: "8-months", label: "8 mo" },
-          { value: "12-months", label: "12 mo" },
-          { value: "16-months", label: "16 mo" },
-          { value: "16-plus", label: "16+ mo" },
-          { value: "indefinite", label: "Indefinite" },
-        ]}
-        value={p.leaseDuration}
-        onSelect={(v) => set("leaseDuration", v)}
-      />
-
-      <View style={styles.prefSection}>
-        <Text style={styles.prefTitle}>What are you looking for in a roommate?</Text>
-        <Text style={styles.prefSub}>Set the levels you'd like your roommate to have.</Text>
-        <DotPicker
-          label="Preferred cleanliness"
-          value={p.prefCleanliness}
-          onChange={(v) => set("prefCleanliness", v as Cleanliness)}
-          lowLabel="Relaxed"
-          highLabel="Spotless"
-        />
-        <DotPicker
-          label="Preferred social energy"
-          value={p.prefSocialEnergy}
-          onChange={(v) => set("prefSocialEnergy", v as SocialEnergy)}
-          lowLabel="Introverted"
-          highLabel="Very social"
-        />
-      </View>
-
-      <DatePickerField
-        label="Desired move-in date"
-        value={p.moveInDate ?? ""}
-        onChange={(v) => set("moveInDate", v)}
-      />
-      <View style={styles.budgetRow}>
-        <View style={[styles.field, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.fieldLabel}>Budget min ($/mo)</Text>
-          <TextInput
-            style={styles.input}
-            value={p.budgetMin?.toString() ?? ""}
-            onChangeText={(v) => set("budgetMin", v ? parseInt(v, 10) : undefined)}
-            placeholder="e.g. 600"
-            placeholderTextColor="#9ca3af"
-            keyboardType="numeric"
-          />
-        </View>
-        <View style={[styles.field, { flex: 1, marginLeft: 8 }]}>
-          <Text style={styles.fieldLabel}>Budget max ($/mo)</Text>
-          <TextInput
-            style={styles.input}
-            value={p.budgetMax?.toString() ?? ""}
-            onChangeText={(v) => set("budgetMax", v ? parseInt(v, 10) : undefined)}
-            placeholder="e.g. 1100"
-            placeholderTextColor="#9ca3af"
-            keyboardType="numeric"
-          />
-        </View>
-      </View>
-    </>
-  );
-}
-
-// -- Dot scale picker (1–5) ---------------------------------------------------
-function DotPicker({
-  label, value, onChange, lowLabel, highLabel,
-}: {
-  label: string; value: number; onChange: (v: number) => void; lowLabel?: string; highLabel?: string;
-}) {
-  return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Pressable
-            key={n}
-            onPress={() => onChange(n)}
-            style={[styles.dotBtn, value === n && styles.dotBtnActive]}
-          >
-            <Text style={[styles.dotBtnText, value === n && styles.dotBtnTextActive]}>{n}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {(lowLabel || highLabel) && (
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-          <Text style={styles.dotHint}>{lowLabel}</Text>
-          <Text style={styles.dotHint}>{highLabel}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-// -- Step 2: Cleanliness quiz --------------------------------------------------
-function Step2({
-  openQ, setOpenQ, answers, setAnswer,
-}: {
-  openQ: number | null;
-  setOpenQ: (q: number | null) => void;
-  answers: QuizAnswer[];
-  setAnswer: (i: number, a: QuizAnswer) => void;
-}) {
-  function toggle(i: number) { setOpenQ(openQ === i ? null : i); }
-  function pick(i: number, v: QuizAnswer) { setAnswer(i, v); }
-  function next(i: number) { setOpenQ(i + 1 < 3 ? i + 1 : null); }
-  return (
-    <>
-      <StepHeading
-        title="Your home habits"
-        subtitle="These questions help us determine your cleanliness level. Please answer honestly."
-      />
-      <AccordionQuestion
-        num={1}
-        question="Which best describes your relationship with smoking, vaping, or alcohol in the home?"
-        options={[
-          { value: "A", label: "Strictly substance-free  -  no smoking, vaping, or alcohol anywhere on the property." },
-          { value: "B", label: "Alcohol is fine, but I need a 100% smoke/vape-free home  -  smells really affect me." },
-          { value: "C", label: "Fine with social drinking and outside-only smoking or vaping." },
-          { value: "D", label: "Comfortable with social drinking and occasional indoor vaping or cannabis use." },
-        ]}
-        answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
-        onNext={() => next(0)}
-      />
-      <AccordionQuestion
-        num={2}
-        question="A roommate's pet leaves hair on the couch or has an occasional accident. What's your take?"
-        options={[
-          { value: "A", label: "Deal-breaker  -  I have allergies or a very low tolerance for pet messes and smells." },
-          { value: "B", label: "I like animals, but they must stay off shared furniture and out of my room." },
-          { value: "C", label: "I love pets and don't mind some hair, as long as the owner cleans up messes right away." },
-          { value: "D", label: "Pet parent at heart  -  I'll probably end up helping care for any pet in the house." },
-        ]}
-        answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
-        onNext={() => next(1)}
-      />
-      <AccordionQuestion
-        num={3}
-        question="How much physical space does your favourite hobby take up in the house?"
-        options={[
-          { value: "A", label: "Zero footprint  -  my hobbies are digital or happen entirely outside the home." },
-          { value: "B", label: "Small footprint  -  one bin or a small desk setup for crafts or supplies." },
-          { value: "C", label: "Moderate footprint  -  a bike, instrument, or larger equipment needing a corner." },
-          { value: "D", label: "Large footprint  -  camping gear, multiple bikes, or studio supplies needing extra storage." },
-        ]}
-        answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
-        onNext={() => next(2)} isLast
-      />
-    </>
-  );
-}
-
-// -- Step 3: Social energy quiz ------------------------------------------------
-function Step3({
-  openQ, setOpenQ, answers, setAnswer,
-}: {
-  openQ: number | null;
-  setOpenQ: (q: number | null) => void;
-  answers: QuizAnswer[];
-  setAnswer: (i: number, a: QuizAnswer) => void;
-}) {
-  function toggle(i: number) { setOpenQ(openQ === i ? null : i); }
-  function pick(i: number, v: QuizAnswer) { setAnswer(i, v); }
-  function next(i: number) { setOpenQ(i + 1 < 3 ? i + 1 : null); }
-  return (
-    <>
-      <StepHeading
-        title="Your social side"
-        subtitle="These questions help us determine your social energy level. Be honest  -  there's no wrong answer."
-      />
-      <AccordionQuestion
-        num={1}
-        question="It's 6:00 PM on a Tuesday after a long day. Where are you?"
-        options={[
-          { value: "A", label: "In my room with the door closed  -  I need total solitude to recharge." },
-          { value: "B", label: "Happy to chat briefly while making food, then heading to my own space." },
-          { value: "C", label: "In the common area, hoping my roommate is around to vent or watch something." },
-          { value: "D", label: "Rarely home  -  I usually stay out with friends until I'm ready to sleep." },
-        ]}
-        answer={answers[0]} open={openQ === 0} onToggle={() => toggle(0)} onSelect={(v) => pick(0, v)}
-        onNext={() => next(0)}
-      />
-      <AccordionQuestion
-        num={2}
-        question="How do you feel about unannounced visitors or frequent guests?"
-        options={[
-          { value: "A", label: "My home is private  -  I prefer 24-hour notice before any guest comes over." },
-          { value: "B", label: "Occasional guests are fine, but max 1 - 2 nights a week with a quick heads-up." },
-          { value: "C", label: "Very social  -  comfortable with friends dropping by anytime in the common areas." },
-          { value: "D", label: "Love hosting  -  I'd like small gatherings or dinner parties 3+ times a week." },
-        ]}
-        answer={answers[1]} open={openQ === 1} onToggle={() => toggle(1)} onSelect={(v) => pick(1, v)}
-        onNext={() => next(1)}
-      />
-      <AccordionQuestion
-        num={3}
-        question="What is the 'soundtrack' of your home life?"
-        options={[
-          { value: "A", label: "Library quiet  -  I use headphones for everything and expect near-silence." },
-          { value: "B", label: "Low background  -  a TV at low volume or quiet music is fine, but no loud bass." },
-          { value: "C", label: "Normal activity  -  cooking sounds, talking, and music are all fine." },
-          { value: "D", label: "High energy  -  I usually have music or TV going at all times." },
-        ]}
-        answer={answers[2]} open={openQ === 2} onToggle={() => toggle(2)} onSelect={(v) => pick(2, v)}
-        onNext={() => next(2)} isLast
-      />
-    </>
-  );
-}
-
-// -- Step 4: Hobbies & Deal Breakers -----------------------------------------
-function StepHobbies({ p, set }: StepProps) {
-  const selected = p.hobbies ?? [];
-  const selectedDB = p.dealBreakers ?? [];
-
-  function toggleHobby(h: string) {
-    if (selected.includes(h)) {
-      set("hobbies", selected.filter((x) => x !== h));
-    } else if (selected.length < MAX_HOBBIES) {
-      set("hobbies", [...selected, h]);
+    if (step === 3 && surveyComplete) {
+      // On the survey-complete review view: back goes to priority ranking
+      setSurveyComplete(false);
+      setStep(2);
+      return;
     }
-  }
-
-  function toggleDb(d: string) {
-    if (selectedDB.includes(d)) {
-      set("dealBreakers", selectedDB.filter((x) => x !== d));
-    } else {
-      set("dealBreakers", [...selectedDB, d]);
+    if (step === 3 && surveyQ > 0) {
+      // Within sequential survey: go back one question
+      setSurveyQ((q) => q - 1);
+      return;
     }
-  }
-
-  return (
-    <>
-      <StepHeading
-        title="Hobbies & Deal Breakers"
-        subtitle="Pick up to 5 hobbies and any deal breakers that apply to you."
-      />
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>
-          Hobbies{" "}
-          <Text style={styles.charCount}>({selected.length}/{MAX_HOBBIES} selected)</Text>
-        </Text>
-        <View style={styles.chips}>
-          {HOBBIES_LIST.map((h) => {
-            const active   = selected.includes(h);
-            const disabled = !active && selected.length >= MAX_HOBBIES;
-            return (
-              <Pressable
-                key={h}
-                style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled]}
-                onPress={() => !disabled && toggleHobby(h)}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{h}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      <View style={[styles.field, { marginTop: 8 }]}>
-        <Text style={styles.fieldLabel}>
-          Deal Breakers{" "}
-          <Text style={styles.charCount}>(select all that apply)</Text>
-        </Text>
-        <View style={styles.chips}>
-          {DEAL_BREAKERS_LIST.map((d) => {
-            const active = selectedDB.includes(d);
-            return (
-              <Pressable
-                key={d}
-                style={[styles.chip, active && styles.chipDealBreaker]}
-                onPress={() => toggleDb(d)}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{d}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </>
-  );
-}
-
-// -- Step 5: Review ------------------------------------------------------------
-function Step5({
-  p, cleanScore, socialScore, set,
-}: {
-  p: Profile;
-  cleanScore: Cleanliness;
-  socialScore: SocialEnergy;
-  set: <K extends keyof Profile>(key: K, val: Profile[K]) => void;
-}) {
-  const cleanLabel  = ["", "Very relaxed", "Relaxed", "Moderate", "Tidy", "Spotless"][cleanScore];
-  const socialLabel = ["", "Very introverted", "Introverted", "Balanced", "Social", "Very social"][socialScore];
-  return (
-    <>
-      <StepHeading title="Review & save" subtitle="Here's what we've got. Tap Finish to save your profile!" />
-      <View style={styles.reviewCard}>
-        <Text style={styles.reviewName}>{p.firstName || "-"}{p.age ? `, ${p.age}` : ""}</Text>
-        {!!p.program && <Text style={styles.reviewSub}>{p.program}</Text>}
-      </View>
-      <View style={styles.reviewRow}>
-        <Text style={styles.reviewLabel}>Lease</Text>
-        <Text style={styles.reviewValue}>{p.leaseDuration ?? "-"}</Text>
-      </View>
-      <View style={styles.reviewRow}>
-        <Text style={styles.reviewLabel}>Sleep</Text>
-        <Text style={styles.reviewValue}>{p.sleepSchedule ?? "-"}</Text>
-      </View>
-      <View style={styles.reviewRow}>
-        <Text style={styles.reviewLabel}>Pets</Text>
-        <Text style={styles.reviewValue}>
-          {[p.hasDog && "Dog", p.hasCat && "Cat"].filter(Boolean).join(", ") || "None"}
-        </Text>
-      </View>
-      <View style={styles.reviewRow}>
-        <Text style={styles.reviewLabel}>Hobbies</Text>
-        <Text style={styles.reviewValue}>{p.hobbies && p.hobbies.length > 0 ? p.hobbies.join(", ") : "None"}</Text>
-      </View>
-      <View style={styles.reviewRow}>
-        <Text style={styles.reviewLabel}>Budget</Text>
-        <Text style={styles.reviewValue}>
-          {p.budgetMin || p.budgetMax
-            ? `$${p.budgetMin ?? "?"} - $${p.budgetMax ?? "?"}/mo`
-            : "Not set"}
-        </Text>
-      </View>
-      <View style={styles.scoreBanner}>
-        <View style={styles.scoreItem}>
-          <Text style={styles.scoreEmoji}>Clean</Text>
-          <Text style={styles.scoreValue}>{cleanScore}/5</Text>
-          <Text style={styles.scoreDesc}>{cleanLabel}</Text>
-        </View>
-        <View style={styles.scoreDivider} />
-        <View style={styles.scoreItem}>
-          <Text style={styles.scoreEmoji}>Social</Text>
-          <Text style={styles.scoreValue}>{socialScore}/5</Text>
-          <Text style={styles.scoreDesc}>{socialLabel}</Text>
-        </View>
-      </View>
-      <Text style={styles.reviewNote}>
-        Your cleanliness and social energy scores are calculated from your quiz answers and used to find compatible roommates.
-      </Text>
-    </>
-  );
-}
-
-// -- Default profile -----------------------------------------------------------
-const DEFAULTS: Omit<Profile, "id" | "firstName"> = {
-  bio: "",
-  program: "",
-  photoUrl: "",
-  sleepSchedule: "normal",
-  cleanliness: 3,
-  prefCleanliness: 3,
-  socialEnergy: 3,
-  prefSocialEnergy: 3,
-  guestsFrequency: "occasionally",
-  prefGuestsFrequency: "occasionally",
-  substanceEnv: "smoke-free",
-  hasDog: false,
-  hasCat: false,
-  petAllergy: "none",
-  openToPets: false,
-  noiseTolerance: "moderate",
-  leaseDuration: "8-months",
-  moveInDate: "",
-};
-
-// -- Main onboarding screen ----------------------------------------------------
-export default function OnboardingScreen() {
-  const { user, signOut, markOnboardingDone } = useAuth();
-  const [step, setStep] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  const [profile, setProfile] = useState<Profile>({
-    id: user?.uid ?? "me",
-    firstName: user?.displayName?.split(" ")[0] ?? "",
-    ...DEFAULTS,
-  });
-
-  const [cleanOpenQ, setCleanOpenQ]   = useState<number | null>(0);
-  const [socialOpenQ, setSocialOpenQ] = useState<number | null>(0);
-  const [cleanAnswers, setCleanAnswers] = useState<QuizAnswer[]>([undefined, undefined, undefined]);
-  const [socialAnswers, setSocialAnswers] = useState<QuizAnswer[]>([undefined, undefined, undefined]);
-
-  function set<K extends keyof Profile>(key: K, val: Profile[K]) {
-    setProfile((prev) => ({ ...prev, [key]: val }));
-  }
-  function setCleanAnswer(i: number, v: QuizAnswer) {
-    setCleanAnswers((prev) => { const n = [...prev]; n[i] = v; return n; });
-  }
-  function setSocialAnswer(i: number, v: QuizAnswer) {
-    setSocialAnswers((prev) => { const n = [...prev]; n[i] = v; return n; });
-  }
-
-  const cleanScore  = avg3(cleanAnswers[0],  cleanAnswers[1],  cleanAnswers[2],  CLEAN_MAP, CLEAN_MAP2, CLEAN_MAP);
-  const socialScore = avg3(socialAnswers[0], socialAnswers[1], socialAnswers[2], SOCIAL_MAP, SOCIAL_MAP, SOCIAL_MAP3);
-
-  function validateStep(): string | null {
-    if (step === 0 && !profile.firstName.trim()) return "Please enter your first name.";
-    if (step === 0 && !profile.program.trim())   return "Please enter your program.";
-    if (step === 2 && cleanAnswers.some((a) => !a))  return "Please answer all 3 questions.";
-    if (step === 3 && socialAnswers.some((a) => !a)) return "Please answer all 3 questions.";
-    if (step === 4 && (profile.hobbies ?? []).length === 0) return "Please select at least 1 hobby.";
-    return null;
+    if (step === 3 && surveyQ === 0) {
+      // Start of survey: go back to priority ranking
+      setStep(2);
+      return;
+    }
+    if (step > 1) setStep((s) => s - 1);
   }
 
   function handleNext() {
-    const err = validateStep();
-    if (err) { setError(err); return; }
-    setError("");
-    const nextStep = step + 1;
-    setStep(nextStep);
+    if (step === 3) return; // survey auto-advances
+    if (step < TOTAL_STEPS) setStep((s) => s + 1);
   }
 
-  async function handleFinish() {
-    setError("");
-    setSaving(true);
-    try {
-      const uid = user?.uid;
-      if (!uid) {
-        setError("Not logged in  -  please restart the app and sign in again.");
-        setSaving(false);
-        return;
-      }
-      console.log("[onboarding] saving profile for uid:", uid);
-      const finalProfile: Profile = {
-        ...profile,
-        id: uid,
-        cleanliness:      cleanScore,
-        prefCleanliness:  profile.prefCleanliness,
-        socialEnergy:     socialScore,
-        prefSocialEnergy: profile.prefSocialEnergy,
-        substanceEnv:     substanceFrom(cleanAnswers[0]),
-        noiseTolerance:   noiseFrom(socialAnswers[2]),
-        guestsFrequency:  guestsFrom(socialAnswers[1]),
-        prefGuestsFrequency: guestsFrom(socialAnswers[1]),
-      };
-      console.log("[onboarding] writing profile...");
-      await saveProfile(uid, finalProfile);
-      console.log("[onboarding] profile saved, writing onboarded flag...");
-      await saveOnboarded(uid);
-      console.log("[onboarding] all writes done, navigating...");
-      markOnboardingDone();
-      router.replace("/(tabs)");
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(`Save failed: ${msg}`);
-      console.error("[onboarding] save error:", e);
-      Alert.alert("Firebase Error", msg);
-    } finally {
-      setSaving(false);
+  // ── Survey answer handler ────────────────────────────────────────────────────
+
+  function handleSurveyAnswer(qKey: keyof SurveyScores, score: SurveyScore) {
+    const updated = { ...surveyAnswers, [qKey]: score };
+    setSurveyAnswers(updated);
+    if (surveyEditMode) {
+      // User was editing a single question from the review view — return to it
+      setSurveyEditMode(false);
+      return;
+    }
+    if (surveyQ < SURVEY_QUESTIONS.length - 1) {
+      setSurveyQ((q) => q + 1);
+    } else {
+      // All 10 questions answered — advance to step 4
+      setSurveyComplete(true);
+      setStep(4);
     }
   }
 
-  const progress = (step + 1) / TOTAL_STEPS;
-  const isLast   = step === TOTAL_STEPS - 1;
+  // ── Category priority ranking ────────────────────────────────────────────────
+
+  function moveUp(index: number) {
+    if (index === 0) return;
+    const next = [...priorities];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setPriorities(next);
+  }
+
+  function moveDown(index: number) {
+    if (index === priorities.length - 1) return;
+    const next = [...priorities];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setPriorities(next);
+  }
+
+  // ── Photo picker ──────────────────────────────────────────────────────────────
+
+  const pickPhoto = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission required", "Please allow access to your photo library.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUrl(result.assets[0].uri);
+    }
+  }, []);
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
+
+  async function handleSubmit() {
+    if (!user) return;
+    const scores = surveyAnswers as SurveyScores;
+    if (Object.keys(scores).length < 10) {
+      Alert.alert("Survey incomplete", "Please complete all 10 survey questions.");
+      setStep(3);
+      setSurveyQ(0);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let finalPhotoUrl = photoUrl;
+      if (photoUrl && !photoUrl.startsWith("http")) {
+        setUploading(true);
+        finalPhotoUrl = await uploadProfilePhoto(user.uid, photoUrl);
+        setUploading(false);
+      }
+
+      const derived = deriveSurveyDisplayFields(scores);
+
+      const profile: Profile = {
+        id: user.uid,
+        firstName: firstName.trim(),
+        age: age ? parseInt(age, 10) || undefined : undefined,
+        gender: (gender as Gender) || undefined,
+        program: program.trim(),
+        bio: bio.trim(),
+        photoUrl: finalPhotoUrl || undefined,
+        moveInDate: moveInDate || undefined,
+        // Derived display fields from survey
+        ...derived,
+        noiseTolerance: "moderate",
+        // Survey data
+        surveyScores: scores,
+        categoryPriorities: priorities,
+        // Hard filters
+        substanceEnv,
+        hasDog,
+        hasCat,
+        petAllergy,
+        openToPets,
+        leaseDuration,
+        budgetMin: budgetMin ? parseInt(budgetMin, 10) || undefined : undefined,
+        budgetMax: budgetMax ? parseInt(budgetMax, 10) || undefined : undefined,
+        // Optional extras
+        hobbies: selectedHobbies.length > 0 ? selectedHobbies : undefined,
+        dealBreakers: selectedDealBreakers.length > 0 ? selectedDealBreakers : undefined,
+        instagramHandle: instagramHandle.trim() || undefined,
+      };
+
+      await saveProfile(profile);
+      await saveOnboarded(user.uid);
+      markOnboardingDone();
+      router.replace("/(tabs)");
+    } catch (e) {
+      Alert.alert("Error", "Failed to save profile. Please try again.");
+    } finally {
+      setSaving(false);
+      setUploading(false);
+    }
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+
+  const showBackBtn = step > 1;
+  const showNextBtn = step !== 3 && step < TOTAL_STEPS;
+  const showSubmitBtn = step === TOTAL_STEPS;
+
+  // Progress: for step 3, factor in survey sub-progress
+  const progressValue =
+    step === 3
+      ? ((2 + surveyQ / SURVEY_QUESTIONS.length) / TOTAL_STEPS)
+      : ((step - 1) / TOTAL_STEPS);
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#f5f5f7" }}
+      style={s.flex}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      {/* Progress bar */}
+      <View style={s.progressBar}>
+        <View style={[s.progressFill, { width: `${progressValue * 100}%` }]} />
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.container}
+        style={s.flex}
+        contentContainerStyle={s.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.logo}>GryphonGrid</Text>
-          <Text style={styles.tagline}>Set up your profile</Text>
-        </View>
+        {/* ── Step 1: Basic Info ────────────────────────────────────────── */}
+        {step === 1 && (
+          <View style={s.stepContainer}>
+            <Text style={s.stepLabel}>Step 1 of {TOTAL_STEPS}</Text>
+            <Text style={s.stepTitle}>Basic Profile</Text>
+            <Text style={s.stepSubtitle}>Tell potential roommates who you are.</Text>
 
-        <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
-        <Text style={styles.progressLabel}>Step {step + 1} of {TOTAL_STEPS}</Text>
-
-        <View style={styles.card}>
-          {step === 0 && <Step0 p={profile} set={set} />}
-          {step === 1 && <Step1 p={profile} set={set} />}
-          {step === 2 && (
-            <Step2
-              openQ={cleanOpenQ} setOpenQ={setCleanOpenQ}
-              answers={cleanAnswers} setAnswer={setCleanAnswer}
-            />
-          )}
-          {step === 3 && (
-            <Step3
-              openQ={socialOpenQ} setOpenQ={setSocialOpenQ}
-              answers={socialAnswers} setAnswer={setSocialAnswer}
-            />
-          )}
-          {step === 4 && <StepHobbies p={profile} set={set} />}
-          {step === 5 && <Step5 p={profile} cleanScore={cleanScore} socialScore={socialScore} set={set} />}
-
-          {!!error && <Text style={styles.error}>{error}</Text>}
-
-          <View style={styles.navRow}>
-            {step > 0 ? (
-              <Pressable style={styles.btnBack} onPress={() => { setError(""); setStep((s) => s - 1); }}>
-                <Text style={styles.btnBackText}>Back</Text>
-              </Pressable>
-            ) : (
-              <Pressable style={styles.btnBack} onPress={signOut}>
-                <Text style={styles.btnBackText}>Sign out</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={[styles.btnNext, saving && styles.btnDisabled]}
-              onPress={isLast ? handleFinish : handleNext}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
+            {/* Photo picker */}
+            <Pressable style={s.photoPicker} onPress={pickPhoto}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={s.photoPreview} />
               ) : (
-                <Text style={styles.btnNextText}>{isLast ? "Finish" : "Next"}</Text>
+                <View style={s.photoPlaceholder}>
+                  <FontAwesome name="camera" size={28} color="#9ca3af" />
+                  <Text style={s.photoHint}>Add photo</Text>
+                </View>
               )}
             </Pressable>
+
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>First name *</Text>
+              <TextInput
+                style={s.input}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="e.g. Alex"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Program / Occupation *</Text>
+              <TextInput
+                style={s.input}
+                value={program}
+                onChangeText={setProgram}
+                placeholder="e.g. Computer Science at UofG"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Age</Text>
+              <TextInput
+                style={s.input}
+                value={age}
+                onChangeText={setAge}
+                placeholder="e.g. 21"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+                maxLength={2}
+              />
+            </View>
+
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Bio *{" "}
+                <Text style={s.charCount}>{bio.length}/250</Text>
+              </Text>
+              <TextInput
+                style={[s.input, s.bioInput]}
+                value={bio}
+                onChangeText={(t) => setBio(t.slice(0, 250))}
+                placeholder="A short intro about yourself…"
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            <ToggleChips<Gender>
+              label="Gender (optional)"
+              options={GENDER_OPTIONS}
+              value={gender as Gender}
+              onSelect={(v) => setGender(gender === v ? "" : v)}
+            />
+
+            <View style={[s.field, { marginTop: 16 }]}>
+              <Text style={s.fieldLabel}>Earliest move-in date (optional)</Text>
+              <TextInput
+                style={s.input}
+                value={moveInDate}
+                onChangeText={setMoveInDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#9ca3af"
+                keyboardType="numeric"
+              />
+            </View>
           </View>
-        </View>
+        )}
+
+        {/* ── Step 2: Category Priority Ranking ──────────────────────────── */}
+        {step === 2 && (
+          <View style={s.stepContainer}>
+            <Text style={s.stepLabel}>Step 2 of {TOTAL_STEPS}</Text>
+            <Text style={s.stepTitle}>What Matters Most?</Text>
+            <Text style={s.stepSubtitle}>
+              Rank these five lifestyle categories from most to least important to you.
+              The top category gets the highest weight in your roommate matches.
+            </Text>
+
+            <View style={s.priorityList}>
+              {priorities.map((cat, index) => (
+                <View key={cat} style={s.priorityRow}>
+                  {/* Rank badge */}
+                  <View style={s.rankBadge}>
+                    <Text style={s.rankNumber}>{index + 1}</Text>
+                    <Text style={s.rankMult}>×{PRIORITY_MULTIPLIERS[index].toFixed(2)}</Text>
+                  </View>
+
+                  {/* Label */}
+                  <Text style={s.priorityLabel}>{CATEGORY_LABELS[cat]}</Text>
+
+                  {/* Up / Down controls */}
+                  <View style={s.priorityControls}>
+                    <Pressable
+                      style={[s.priorityArrow, index === 0 && s.priorityArrowDisabled]}
+                      onPress={() => moveUp(index)}
+                      disabled={index === 0}
+                    >
+                      <FontAwesome name="chevron-up" size={12} color={index === 0 ? "#d1d5db" : RED} />
+                    </Pressable>
+                    <Pressable
+                      style={[s.priorityArrow, index === priorities.length - 1 && s.priorityArrowDisabled]}
+                      onPress={() => moveDown(index)}
+                      disabled={index === priorities.length - 1}
+                    >
+                      <FontAwesome name="chevron-down" size={12} color={index === priorities.length - 1 ? "#d1d5db" : RED} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View style={s.helperBox}>
+              <Text style={s.helperText}>
+                Categories ranked higher get amplified in your compatibility scores. If cleanliness is a dealbreaker for you, put it first.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* ── Step 3: Survey ─────────────────────────────────────────────── */}
+        {step === 3 && (
+          <View style={s.stepContainer}>
+            <Text style={s.stepLabel}>Step 3 of {TOTAL_STEPS}</Text>
+            <Text style={s.stepTitle}>Behavioral Survey</Text>
+
+            {/* If all questions are already answered (user navigated back from step 4) */}
+            {surveyComplete && !surveyEditMode ? (
+              <>
+                <View style={s.surveyCompleteBanner}>
+                  <Text style={s.surveyCompleteIcon}>✓</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.surveyCompleteTitle}>Survey complete</Text>
+                    <Text style={s.surveyCompleteSubtitle}>All 10 questions answered. You can continue or revisit questions below.</Text>
+                  </View>
+                </View>
+                <Pressable style={s.nextBtn} onPress={() => setStep(4)}>
+                  <Text style={s.nextBtnText}>Continue to Filters</Text>
+                  <FontAwesome name="chevron-right" size={14} color="#fff" />
+                </Pressable>
+                <Text style={[s.stepSubtitle, { marginTop: 12 }]}>Or tap any question to review:</Text>
+                {SURVEY_QUESTIONS.map((q, idx) => {
+                  const answered = surveyAnswers[q.qKey];
+                  const answerLabel = q.answers.find((a) => a.score === answered);
+                  return (
+                    <Pressable
+                      key={q.qKey}
+                      style={s.reviewQRow}
+                      onPress={() => { setSurveyQ(idx); setSurveyEditMode(true); }}
+                    >
+                      <Text style={s.reviewQNum}>{idx + 1}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.reviewQText} numberOfLines={1}>{q.question}</Text>
+                        {answerLabel && (
+                          <Text style={s.reviewQAnswer}>{answerLabel.label}: {answerLabel.sublabel}</Text>
+                        )}
+                      </View>
+                      <FontAwesome name="pencil" size={12} color="#9ca3af" />
+                    </Pressable>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                {/* Survey progress */}
+                <View style={s.surveyProgressRow}>
+                  <Text style={s.surveyProgressText}>Question {surveyQ + 1} of {SURVEY_QUESTIONS.length}</Text>
+                  <View style={s.surveyBar}>
+                    <View style={[s.surveyBarFill, { width: `${((surveyQ) / SURVEY_QUESTIONS.length) * 100}%` }]} />
+                  </View>
+                </View>
+
+                {/* Category badge */}
+                <View style={s.categoryBadge}>
+                  <Text style={s.categoryBadgeText}>
+                    {CATEGORY_LABELS[SURVEY_QUESTIONS[surveyQ].category]}
+                    {" · "}
+                    {SURVEY_QUESTIONS[surveyQ].type === "behavior" ? "Your behaviour" : "Your expectation"}
+                  </Text>
+                </View>
+
+                {/* Question */}
+                <Text style={s.surveyQuestion}>{SURVEY_QUESTIONS[surveyQ].question}</Text>
+
+                {/* Answer options — tap to auto-advance */}
+                <View style={s.surveyAnswers}>
+                  {SURVEY_QUESTIONS[surveyQ].answers.map((ans) => {
+                    const currentKey = SURVEY_QUESTIONS[surveyQ].qKey;
+                    const isSelected = surveyAnswers[currentKey] === ans.score;
+                    return (
+                      <Pressable
+                        key={ans.label}
+                        style={[s.surveyOption, isSelected && s.surveyOptionSelected]}
+                        onPress={() => handleSurveyAnswer(currentKey, ans.score)}
+                      >
+                        <View style={[s.surveyOptionBadge, isSelected && s.surveyOptionBadgeSelected]}>
+                          <Text style={[s.surveyOptionBadgeText, isSelected && s.surveyOptionBadgeTextSelected]}>
+                            {ans.label}
+                          </Text>
+                        </View>
+                        <Text style={[s.surveyOptionText, isSelected && s.surveyOptionTextSelected]}>
+                          {ans.sublabel}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={s.tapHint}>Tap an answer to continue →</Text>
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ── Step 4: Hard Filters ───────────────────────────────────────── */}
+        {step === 4 && (
+          <View style={s.stepContainer}>
+            <Text style={s.stepLabel}>Step 4 of {TOTAL_STEPS}</Text>
+            <Text style={s.stepTitle}>Filters & Dealbreakers</Text>
+            <Text style={s.stepSubtitle}>
+              These hard filters exclude incompatible profiles before matching scores are calculated.
+            </Text>
+
+            <ToggleChips<SubstanceEnv>
+              label="Substance environment"
+              options={SUBSTANCE_OPTIONS}
+              value={substanceEnv}
+              onSelect={setSubstanceEnv}
+            />
+
+            <View style={[s.field, { marginTop: 20 }]}>
+              <Text style={s.fieldLabel}>Pets you have</Text>
+              <View style={s.toggleRow}>
+                <Pressable
+                  style={[s.toggleBtn, hasDog && s.toggleBtnActive]}
+                  onPress={() => setHasDog(!hasDog)}
+                >
+                  <Text style={[s.toggleBtnText, hasDog && s.toggleBtnTextActive]}>🐶 Dog</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.toggleBtn, hasCat && s.toggleBtnActive]}
+                  onPress={() => setHasCat(!hasCat)}
+                >
+                  <Text style={[s.toggleBtnText, hasCat && s.toggleBtnTextActive]}>🐱 Cat</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <ToggleChips<PetAllergy>
+              label="Pet allergies"
+              options={PET_ALLERGY_OPTIONS}
+              value={petAllergy}
+              onSelect={setPetAllergy}
+            />
+
+            <View style={[s.field, { marginTop: 16 }]}>
+              <Text style={s.fieldLabel}>Open to living with pets?</Text>
+              <View style={s.toggleRow}>
+                <Pressable
+                  style={[s.toggleBtn, openToPets && s.toggleBtnActive]}
+                  onPress={() => setOpenToPets(true)}
+                >
+                  <Text style={[s.toggleBtnText, openToPets && s.toggleBtnTextActive]}>Yes</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.toggleBtn, !openToPets && s.toggleBtnActive]}
+                  onPress={() => setOpenToPets(false)}
+                >
+                  <Text style={[s.toggleBtnText, !openToPets && s.toggleBtnTextActive]}>No</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <ToggleChips<LeaseDuration>
+              label="Preferred lease length"
+              options={LEASE_OPTIONS}
+              value={leaseDuration}
+              onSelect={setLeaseDuration}
+            />
+
+            <View style={[s.field, { marginTop: 16 }]}>
+              <Text style={s.fieldLabel}>Monthly budget range (CAD)</Text>
+              <View style={s.budgetRow}>
+                <TextInput
+                  style={[s.input, s.budgetInput]}
+                  value={budgetMin}
+                  onChangeText={setBudgetMin}
+                  placeholder="Min $"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numeric"
+                />
+                <Text style={s.budgetSep}>–</Text>
+                <TextInput
+                  style={[s.input, s.budgetInput]}
+                  value={budgetMax}
+                  onChangeText={setBudgetMax}
+                  placeholder="Max $"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Step 5: Review & Submit ────────────────────────────────────── */}
+        {step === 5 && (
+          <View style={s.stepContainer}>
+            <Text style={s.stepLabel}>Step 5 of {TOTAL_STEPS}</Text>
+            <Text style={s.stepTitle}>Review & Create Profile</Text>
+            <Text style={s.stepSubtitle}>Take a look at your profile before going live.</Text>
+
+            {/* Summary cards */}
+            <View style={s.reviewCard}>
+              <Text style={s.reviewCardTitle}>Basic Info</Text>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={s.reviewPhoto} />
+              ) : null}
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Name: </Text>{firstName || "—"}</Text>
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Program: </Text>{program || "—"}</Text>
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Age: </Text>{age || "—"}</Text>
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Move-in: </Text>{moveInDate || "—"}</Text>
+              <Text style={s.reviewLine} numberOfLines={3}>
+                <Text style={s.reviewKey}>Bio: </Text>{bio || "—"}
+              </Text>
+            </View>
+
+            <View style={s.reviewCard}>
+              <Text style={s.reviewCardTitle}>Category Priorities</Text>
+              {priorities.map((cat, i) => (
+                <Text key={cat} style={s.reviewLine}>
+                  {i + 1}. {CATEGORY_LABELS[cat]}
+                  <Text style={{ color: "#9ca3af" }}> ×{PRIORITY_MULTIPLIERS[i].toFixed(2)}</Text>
+                </Text>
+              ))}
+            </View>
+
+            <View style={s.reviewCard}>
+              <Text style={s.reviewCardTitle}>Survey</Text>
+              <Text style={s.reviewLine}>
+                {Object.keys(surveyAnswers).length}/10 questions answered
+                {Object.keys(surveyAnswers).length < 10 && (
+                  <Text style={{ color: RED }}> — incomplete!</Text>
+                )}
+              </Text>
+              {Object.keys(surveyAnswers).length < 10 && (
+                <Pressable onPress={() => { setStep(3); setSurveyQ(0); }}>
+                  <Text style={s.reviewEditLink}>Complete survey →</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={s.reviewCard}>
+              <Text style={s.reviewCardTitle}>Filters</Text>
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Substance: </Text>{substanceEnv}</Text>
+              <Text style={s.reviewLine}>
+                <Text style={s.reviewKey}>Pets: </Text>
+                {hasDog && hasCat ? "Dog & Cat" : hasDog ? "Dog" : hasCat ? "Cat" : "None"}
+              </Text>
+              <Text style={s.reviewLine}><Text style={s.reviewKey}>Lease: </Text>{leaseDuration}</Text>
+              {(budgetMin || budgetMax) && (
+                <Text style={s.reviewLine}>
+                  <Text style={s.reviewKey}>Budget: </Text>
+                  {budgetMin ? `$${budgetMin}` : "?"}–{budgetMax ? `$${budgetMax}/mo` : "?"}
+                </Text>
+              )}
+            </View>
+
+            {/* Optional: Hobbies */}
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Hobbies (optional)</Text>
+              <Chips<string>
+                options={HOBBIES_LIST}
+                selected={selectedHobbies}
+                onToggle={(h) =>
+                  setSelectedHobbies((prev) =>
+                    prev.includes(h) ? prev.filter((x) => x !== h) : [...prev, h]
+                  )
+                }
+              />
+            </View>
+
+            {/* Optional: Dealbreakers */}
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Deal Breakers (optional)</Text>
+              <Chips<string>
+                options={DEAL_BREAKERS_LIST}
+                selected={selectedDealBreakers}
+                onToggle={(d) =>
+                  setSelectedDealBreakers((prev) =>
+                    prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]
+                  )
+                }
+                color="#dc2626"
+              />
+            </View>
+
+            {/* Optional: Instagram */}
+            <View style={s.field}>
+              <Text style={s.fieldLabel}>Instagram handle (optional — revealed after matching)</Text>
+              <TextInput
+                style={s.input}
+                value={instagramHandle}
+                onChangeText={setInstagramHandle}
+                placeholder="@username"
+                placeholderTextColor="#9ca3af"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Bottom navigation */}
+      <View style={s.navBar}>
+        {showBackBtn ? (
+          <Pressable style={s.backBtn} onPress={handleBack}>
+            <FontAwesome name="chevron-left" size={14} color={RED} />
+            <Text style={s.backBtnText}>Back</Text>
+          </Pressable>
+        ) : (
+          <View style={s.backBtnSpacer} />
+        )}
+
+        {step === 3 ? (
+          // Survey step — no manual Next (auto-advances)
+          <View style={{ flex: 1 }} />
+        ) : showNextBtn ? (
+          <Pressable
+            style={[s.nextBtn, !canGoNext() && s.nextBtnDisabled]}
+            onPress={handleNext}
+            disabled={!canGoNext()}
+          >
+            <Text style={s.nextBtnText}>Next</Text>
+            <FontAwesome name="chevron-right" size={14} color="#fff" />
+          </Pressable>
+        ) : showSubmitBtn ? (
+          <Pressable
+            style={[s.nextBtn, saving && s.nextBtnDisabled]}
+            onPress={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Text style={s.nextBtnText}>Create Profile</Text>
+                <FontAwesome name="check" size={14} color="#fff" />
+              </>
+            )}
+          </Pressable>
+        ) : null}
+      </View>
     </KeyboardAvoidingView>
   );
 }
 
-// -- Styles --------------------------------------------------------------------
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: "#f5f5f7",
-    padding: 24,
-    paddingTop: Platform.OS === "ios" ? 60 : 36,
-    paddingBottom: 48,
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: "#f5f5f7" },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 8 },
+
+  // Progress bar
+  progressBar: {
+    height: 4,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 2,
   },
-  header: { alignItems: "center", marginBottom: 20 },
-  logo: { fontSize: 28, fontWeight: "800", color: RED },
-  tagline: { fontSize: 14, color: "#6b7280", marginTop: 4 },
-  progressBg: { height: 6, backgroundColor: "#e5e7eb", borderRadius: 3, marginBottom: 6, overflow: "hidden" },
-  progressFill: { height: 6, backgroundColor: RED, borderRadius: 3 },
-  progressLabel: { fontSize: 12, color: "#9ca3af", textAlign: "right", marginBottom: 16 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
+  progressFill: {
+    height: 4,
+    backgroundColor: RED,
+    borderRadius: 2,
   },
-  stepHeading: { marginBottom: 24 },
-  stepTitle: { fontSize: 22, fontWeight: "700", color: "#111827", marginBottom: 4 },
-  stepSubtitle: { fontSize: 14, color: "#6b7280" },
-  field: { marginBottom: 20 },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
-  charCount: { fontWeight: "400", color: "#9ca3af" },
-  igRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  igAt: { fontSize: 16, fontWeight: "600", color: "#6b7280", paddingBottom: 2 },
+
+  // Step wrapper
+  stepContainer: { gap: 16 },
+  stepLabel: { fontSize: 12, fontWeight: "700", color: "#9ca3af", textTransform: "uppercase", letterSpacing: 0.5, marginTop: 12 },
+  stepTitle: { fontSize: 26, fontWeight: "800", color: "#111", marginTop: 2 },
+  stepSubtitle: { fontSize: 14, color: "#6b7280", lineHeight: 21, marginBottom: 4 },
+
+  // Field
+  field: { gap: 6 },
+  fieldLabel: { fontSize: 13, fontWeight: "700", color: "#374151" },
+  charCount: { fontSize: 11, color: "#9ca3af", fontWeight: "400" },
   input: {
     borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
     fontSize: 15,
-    color: "#111827",
-    backgroundColor: "#f9fafb",
+    color: "#111",
+    backgroundColor: "#fff",
   },
-  textArea: { height: 110, paddingTop: 12, textAlignVertical: "top" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
+  bioInput: {
+    height: 110,
+    textAlignVertical: "top",
+    paddingTop: 11,
+  },
+
+  // Toggle chips (single-select)
+  toggleChip: {
     borderWidth: 1,
     borderColor: "#d1d5db",
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#fff",
   },
-  chipActive: { backgroundColor: RED, borderColor: RED },
-  chipText: { fontSize: 13, color: "#374151", fontWeight: "500" },
-  chipTextActive: { color: "#fff" },
-  toggleGroup: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 14,
-    backgroundColor: "#f9fafb",
-    marginBottom: 20,
-    overflow: "hidden",
+  toggleChipActive: {
+    borderColor: RED,
+    backgroundColor: RED + "12",
   },
-  toggleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  toggleChipText: { fontSize: 13, color: "#374151" },
+  toggleChipTextActive: { color: RED, fontWeight: "700" },
+
+  // Photo picker
+  photoPicker: { alignSelf: "center" },
+  photoPreview: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#e5e7eb",
+  },
+  photoPlaceholder: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: "#f3f4f6",
+    borderWidth: 2,
+    borderColor: "#d1d5db",
+    borderStyle: "dashed",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  budgetRow: { flexDirection: "row" },
-  // Accordion
-  accordion: {
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 14,
-    backgroundColor: "#f9fafb",
-    marginBottom: 12,
-    overflow: "hidden",
-  },
-  accordionOpen: { borderColor: RED },
-  accordionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  accordionNum: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: RED,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 2,
-  },
-  accordionQ: { fontSize: 14, color: "#111827", fontWeight: "600", lineHeight: 20 },
-  accordionSelected: { fontSize: 13, color: RED, fontWeight: "500", marginTop: 6 },
-  accordionChevron: { fontSize: 11, color: "#9ca3af", marginTop: 2 },
-  accordionChevronWrap: { width: 20, alignItems: "center", justifyContent: "center" },
-  accordionNextBtn: {
-    marginTop: 8,
-    alignSelf: "flex-end",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: RED,
-    borderRadius: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    justifyContent: "center",
     gap: 6,
   },
-  accordionNextText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-  accordionBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8 },
-  optionRow: {
+  photoHint: { fontSize: 12, color: "#9ca3af" },
+
+  // Priority ranking
+  priorityList: { gap: 10 },
+  priorityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    padding: 12,
+    gap: 12,
+  },
+  rankBadge: {
+    width: 44,
+    alignItems: "center",
+    backgroundColor: RED + "10",
+    borderRadius: 8,
+    paddingVertical: 6,
+  },
+  rankNumber: { fontSize: 16, fontWeight: "800", color: RED },
+  rankMult: { fontSize: 10, color: RED, fontWeight: "600" },
+  priorityLabel: { flex: 1, fontSize: 14, fontWeight: "600", color: "#111" },
+  priorityControls: { gap: 4 },
+  priorityArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  priorityArrowDisabled: { opacity: 0.3 },
+  helperBox: {
+    backgroundColor: "#fffbeb",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+    padding: 12,
+  },
+  helperText: { fontSize: 12, color: "#92400e", lineHeight: 18 },
+
+  // Survey
+  surveyProgressRow: { gap: 6 },
+  surveyProgressText: { fontSize: 12, color: "#9ca3af", fontWeight: "600" },
+  surveyBar: {
+    height: 4,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 2,
+  },
+  surveyBarFill: {
+    height: 4,
+    backgroundColor: RED,
+    borderRadius: 2,
+  },
+  categoryBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: RED + "12",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  categoryBadgeText: { fontSize: 12, color: RED, fontWeight: "700" },
+  surveyQuestion: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111",
+    lineHeight: 27,
+  },
+  surveyAnswers: { gap: 10 },
+  surveyOption: {
     flexDirection: "row",
     alignItems: "flex-start",
-    padding: 12,
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#e5e7eb",
+    padding: 14,
+  },
+  surveyOptionSelected: {
+    borderColor: RED,
+    backgroundColor: RED + "08",
+  },
+  surveyOptionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  surveyOptionBadgeSelected: {
+    backgroundColor: RED,
+  },
+  surveyOptionBadgeText: { fontSize: 13, fontWeight: "700", color: "#374151" },
+  surveyOptionBadgeTextSelected: { color: "#fff" },
+  surveyOptionText: { fontSize: 14, color: "#374151", flex: 1, lineHeight: 21 },
+  surveyOptionTextSelected: { color: "#111", fontWeight: "500" },
+  tapHint: { fontSize: 12, color: "#d1d5db", alignSelf: "center", marginTop: 4 },
+
+  // Survey complete view
+  surveyCompleteBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    backgroundColor: "#f0fdf4",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#86efac",
+    padding: 14,
+  },
+  surveyCompleteIcon: { fontSize: 22, color: "#16a34a" },
+  surveyCompleteTitle: { fontSize: 15, fontWeight: "700", color: "#15803d" },
+  surveyCompleteSubtitle: { fontSize: 13, color: "#166534", marginTop: 2, lineHeight: 19 },
+  reviewQRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#fff",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    backgroundColor: "#fff",
-    gap: 10,
+    padding: 12,
   },
-  optionRowActive: { borderColor: RED, backgroundColor: "#FFF0F0" },
-  optionCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 1.5,
+  reviewQNum: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: RED,
+    width: 22,
+    textAlign: "center",
+  },
+  reviewQText: { fontSize: 13, color: "#111", fontWeight: "600" },
+  reviewQAnswer: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+
+  // Toggle row (yes/no)
+  toggleRow: { flexDirection: "row", gap: 10 },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: "#d1d5db",
     alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#fff",
   },
-  optionCircleActive: { backgroundColor: RED, borderColor: RED },
-  optionCircleText: { fontSize: 12, fontWeight: "700", color: "#6b7280" },
-  optionCircleTextActive: { color: "#fff" },
-  optionText: { flex: 1, fontSize: 13, color: "#374151", lineHeight: 19 },
-  optionTextActive: { color: "#111827", fontWeight: "500" },
+  toggleBtnActive: {
+    borderColor: RED,
+    backgroundColor: RED + "12",
+  },
+  toggleBtnText: { fontSize: 14, color: "#374151" },
+  toggleBtnTextActive: { color: RED, fontWeight: "700" },
+
+  // Budget
+  budgetRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  budgetInput: { flex: 1 },
+  budgetSep: { fontSize: 18, color: "#9ca3af" },
+
   // Review
   reviewCard: {
-    backgroundColor: "#FFF0F0",
-    borderRadius: 14,
-    padding: 18,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  reviewName: { fontSize: 22, fontWeight: "800", color: "#111827" },
-  reviewSub: { fontSize: 14, color: RED, fontWeight: "600", marginTop: 2 },
-  reviewRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f3f4f6",
-  },
-  reviewLabel: { fontSize: 13, color: "#6b7280" },
-  reviewValue: { fontSize: 13, color: "#111827", fontWeight: "500" },
-  scoreBanner: {
-    flexDirection: "row",
-    backgroundColor: "#FFF0F0",
-    borderRadius: 14,
-    padding: 18,
-    marginTop: 16,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  scoreItem: { flex: 1, alignItems: "center", gap: 4 },
-  scoreEmoji: { fontSize: 24 },
-  scoreValue: { fontSize: 22, fontWeight: "800", color: RED },
-  scoreDesc: { fontSize: 12, color: "#6b7280", textAlign: "center" },
-  scoreDivider: { width: 1, height: 50, backgroundColor: "#ddd6fe", marginHorizontal: 12 },
-  reviewNote: { fontSize: 12, color: "#9ca3af", textAlign: "center", lineHeight: 17 },
-  // Nav
-  error: {
-    color: "#dc2626",
-    fontSize: 13,
-    backgroundColor: "#fef2f2",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  navRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  btnBack: { paddingVertical: 12, paddingHorizontal: 4 },
-  btnBackText: { color: RED, fontSize: 15, fontWeight: "600" },
-  btnNext: {
-    backgroundColor: RED,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 120,
-  },
-  btnNextText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  btnDisabled: { opacity: 0.6 },
-  // Date picker
-  dateBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: "#f9fafb",
-  },
-  dateBtnText: { fontSize: 15, color: "#111827" },
-  datePlaceholder: { color: "#9ca3af" },
-  dateIcon: { fontSize: 16 },
-  dateModalBg: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
-  },
-  dateModal: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-  },
-  dateModalDone: {
-    alignItems: "flex-end",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  dateModalDoneText: { color: RED, fontSize: 16, fontWeight: "700" },
-  // Preference dot picker
-  dotBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    borderWidth: 2, borderColor: "#e5e7eb",
-    backgroundColor: "#f9fafb",
-    alignItems: "center", justifyContent: "center",
-  },
-  dotBtnActive: { backgroundColor: RED, borderColor: RED },
-  dotBtnText: { fontSize: 16, fontWeight: "700", color: "#6b7280" },
-  dotBtnTextActive: { color: "#fff" },
-  dotHint: { fontSize: 11, color: "#9ca3af" },
-  chipDisabled: { opacity: 0.4 },
-  chipDealBreaker: { backgroundColor: '#be123c', borderColor: '#be123c' },
-  prefSection: {
-    marginTop: 20,
-    backgroundColor: "#f9fafb",
     borderRadius: 14,
-    padding: 16,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+    padding: 14,
+    gap: 6,
   },
-  prefTitle: { fontSize: 15, fontWeight: "700", color: "#111", marginBottom: 4 },
-  prefSub: { fontSize: 12, color: "#6b7280", marginBottom: 16 },
+  reviewCardTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#9ca3af",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  reviewLine: { fontSize: 13, color: "#374151", lineHeight: 20 },
+  reviewKey: { fontWeight: "700", color: "#111" },
+  reviewPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#e5e7eb",
+    marginBottom: 4,
+  },
+  reviewEditLink: {
+    fontSize: 13,
+    color: RED,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+
+  // Bottom nav bar
+  navBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === "ios" ? 28 : 12,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  backBtnText: { fontSize: 15, color: RED, fontWeight: "600" },
+  backBtnSpacer: { width: 80 },
+  nextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: RED,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  nextBtnDisabled: { opacity: 0.45 },
+  nextBtnText: { fontSize: 15, color: "#fff", fontWeight: "700" },
 });
